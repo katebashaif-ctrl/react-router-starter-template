@@ -11,7 +11,9 @@
 	"account_id": "0b7dc087410628baa1f652ea0fb8bd57",
 	"vars": {
 		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare R2",
-		"R2_BUCKET": "bt-liwa"
+		"R2_BUCKET": "bt-liwa",
+		"CLOUDFLARE_R2_ACCESS_KEY_ID": "edaa617e65bf06c1e92ae289e137d1c7",
+    "CLOUDFLARE_R2_ENDPOINT": "https://r2.teenliwa.com/products/"
 	},
 	"r2_buckets": [
 		{
