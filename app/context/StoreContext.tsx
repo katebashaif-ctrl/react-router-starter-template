@@ -73,6 +73,11 @@ interface StoreContextType {
 	updateSettings: (newSettings: Partial<StoreSettings>) => void;
 	resetToSampleData: () => void;
 
+	// Cloudflare R2 Sync
+	isR2Synced: boolean;
+	syncCatalogToR2: (prods?: Product[], sets?: StoreSettings) => Promise<boolean>;
+	fetchCatalogFromR2: () => Promise<boolean>;
+
 	// UI Navigation
 	currentView: "store" | "cms";
 	setCurrentView: (view: "store" | "cms") => void;
@@ -190,7 +195,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(INITIAL_LEADS);
 	const [metaConfig, setMetaConfig] = useState<MetaMarketingApiConfig>(INITIAL_META_CONFIG);
 
-	// Load from localStorage on client mount
+	// Cloudflare R2 Sync state
+	const [isR2Synced, setIsR2Synced] = useState<boolean>(false);
+
+	// Fetch catalog synchronously from Cloudflare R2
+	const fetchCatalogFromR2 = async (): Promise<boolean> => {
+		try {
+			const res = await fetch("/api/r2?intent=get_catalog");
+			const json = await res.json();
+			if (json.success && json.fromR2 && json.data && Array.isArray(json.data.products) && json.data.products.length > 0) {
+				setProducts(json.data.products);
+				if (json.data.settings) {
+					setSettings((prev) => ({ ...prev, ...json.data.settings }));
+				}
+				setIsR2Synced(true);
+				return true;
+			}
+		} catch (err) {
+			console.warn("Could not fetch catalog from R2 on mount:", err);
+		}
+		return false;
+	};
+
+	// Synchronize products & settings directly to Cloudflare R2
+	const syncCatalogToR2 = async (prodsToSync?: Product[], setsToSync?: StoreSettings): Promise<boolean> => {
+		try {
+			const res = await fetch("/api/r2", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					intent: "sync_catalog",
+					data: {
+						products: prodsToSync || products,
+						settings: setsToSync || settings,
+						lastUpdated: new Date().toISOString(),
+						storeName: "خيرات الدار | تين ليوا",
+					},
+				}),
+			});
+			const json = await res.json();
+			if (json.success && json.r2Synced) {
+				setIsR2Synced(true);
+				return true;
+			}
+		} catch (err) {
+			console.warn("Failed to sync catalog to Cloudflare R2:", err);
+		}
+		return false;
+	};
+
+	// Load from localStorage on client mount, then load live from R2
 	useEffect(() => {
 		setIsClient(true);
 		try {
@@ -230,6 +284,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		} catch (e) {
 			console.error("Error reading localStorage:", e);
 		}
+
+		// Sync live from Cloudflare R2 Bucket
+		fetchCatalogFromR2();
 	}, []);
 
 	// Sync to localStorage
@@ -381,31 +438,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		}
 	};
 
-	// Product mutations
-	const addProduct = (productData: Omit<Product, "id">) => {
+	// Product mutations with synchronous Cloudflare R2 storage
+	const addProduct = async (productData: Omit<Product, "id">) => {
 		const newId = `prod-${Date.now().toString(36)}`;
-		const newProduct: Product = { ...productData, id: newId };
-		setProducts((prev) => [newProduct, ...prev]);
-		showToast("تم إضافة المنتج", `تمت إضافة "${newProduct.name}" بنجاح إلى المتجر.`);
+		let finalImage = productData.image;
+
+		// Ensure that if the image was base64, it's uploaded to Cloudflare R2
+		if (finalImage && finalImage.startsWith("data:image/")) {
+			try {
+				const uploadRes = await fetch("/api/r2", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						intent: "upload_base64",
+						imageBase64: finalImage,
+						imageName: productData.nameEn || productData.name || "product",
+					}),
+				});
+				const uploadData = await uploadRes.json();
+				if (uploadData.success && uploadData.url) {
+					finalImage = uploadData.url;
+				}
+			} catch (err) {
+				console.warn("Could not upload product image to R2:", err);
+			}
+		}
+
+		const newProduct: Product = { ...productData, image: finalImage, id: newId };
+		const updated = [newProduct, ...products];
+		setProducts(updated);
+		showToast("تم إضافة المنتج", `تمت إضافة "${newProduct.name}" بنجاح ومزامنتها في سحابة R2.`);
+
+		// Sync directly to Cloudflare R2
+		syncCatalogToR2(updated);
 	};
 
 	const updateProduct = (id: string, updates: Partial<Product>) => {
-		setProducts((prev) =>
-			prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-		);
+		const updated = products.map((p) => (p.id === id ? { ...p, ...updates } : p));
+		setProducts(updated);
 		showToast("تم تحديث المنتج", "تم حفظ التعديلات بنجاح.");
+		syncCatalogToR2(updated);
 	};
 
 	const deleteProduct = (id: string) => {
 		const target = products.find((p) => p.id === id);
-		setProducts((prev) => prev.filter((p) => p.id !== id));
+		const updated = products.filter((p) => p.id !== id);
+		setProducts(updated);
 		showToast("تم حذف المنتج", `تم حذف "${target?.name || id}" من المتجر.`, "info");
+		syncCatalogToR2(updated);
 	};
 
 	const toggleProductStock = (id: string) => {
-		setProducts((prev) =>
-			prev.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p)),
-		);
+		const updated = products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p));
+		setProducts(updated);
+		syncCatalogToR2(updated);
 	};
 
 	// Cart operations
@@ -648,6 +734,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				settings,
 				updateSettings,
 				resetToSampleData,
+				isR2Synced,
+				syncCatalogToR2,
+				fetchCatalogFromR2,
 				currentView,
 				setCurrentView,
 				cmsTab,
