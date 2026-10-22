@@ -41,8 +41,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 			);
 			const data = (await res.json()) as { success: boolean };
 			verified = data.success === true;
-		} catch (e) {
-			console.warn("Cloudflare token check failed:", e);
+		} catch {
+			// Token not provided or verification endpoint unreachable
 		}
 
 		let remoteImages: string[] = [];
@@ -62,8 +62,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 					.filter((item) => item.key && item.key.startsWith("products/"))
 					.map((item) => `/images/r2/${item.key.replace("products/", "")}`);
 			}
-		} catch (e) {
-			console.warn("Cloudflare R2 list failed:", e);
+		} catch {
+			// Cloudflare R2 listing skipped
 		}
 
 		if (remoteImages.length > 0) {
@@ -146,11 +146,12 @@ export async function action({ request }: ActionFunctionArgs) {
 					fs.writeFileSync(localPath, buffer);
 					finalUrl = `/images/r2/${filename}`;
 					savedLocally = true;
-				} catch (fileErr) {
-					console.warn("Local file save warning (using data URL fallback):", fileErr);
+				} catch {
+					// In serverless / workerd environments, filesystem writes are disallowed.
+					// Silently use finalUrl (data URL) which works seamlessly in the UI.
 				}
 
-				// Upload to Cloudflare R2 if token is provided
+				// Upload to Cloudflare R2 if credentials provided
 				let r2Synced = false;
 				if (CLOUDFLARE_CONFIG.token && CLOUDFLARE_CONFIG.accountId) {
 					try {
@@ -169,8 +170,8 @@ export async function action({ request }: ActionFunctionArgs) {
 						);
 						const r2Result = (await r2Res.json().catch(() => ({}))) as { success?: boolean };
 						r2Synced = r2Result?.success === true;
-					} catch (r2Err) {
-						console.warn("Cloudflare R2 sync warning:", r2Err);
+					} catch {
+						// Cloudflare R2 optional sync catch
 					}
 				}
 
