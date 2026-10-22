@@ -1,0 +1,22 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "teen-liwa-store",
+	"main": "./workers/app.ts",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"account_id": "0b7dc087410628baa1f652ea0fb8bd57",
+	"vars": {
+		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare R2",
+		"R2_BUCKET": "bt-liwa"
+	},
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "bt-liwa"
+		}
+	]
+}
