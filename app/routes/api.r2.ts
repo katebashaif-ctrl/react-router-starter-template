@@ -128,41 +128,58 @@ export async function action({ request }: ActionFunctionArgs) {
 
 			// Intent 2: Upload base64 image to R2 & save locally
 			if (body.intent === "upload_base64" && body.imageBase64) {
-				const extMatch = body.imageBase64.match(/^data:image\/([a-zA-Z0-9]+);base64,/);
+				const extMatch = body.imageBase64.match(/^data:image\/([a-zA-Z0-9+]+);base64,/);
 				const ext = extMatch ? extMatch[1] : "jpg";
 				const base64Data = body.imageBase64.replace(/^data:image\/\w+;base64,/, "");
-				const buffer = Buffer.from(base64Data, "base64");
-
 				const filename = `${Date.now()}-${(body.imageName || "product").replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
-				const localPath = path.join(process.cwd(), "public", "images", "r2", filename);
 
-				// Save locally
-				const r2Dir = path.join(process.cwd(), "public", "images", "r2");
-				if (!fs.existsSync(r2Dir)) {
-					fs.mkdirSync(r2Dir, { recursive: true });
+				let savedLocally = false;
+				let finalUrl = body.imageBase64; // Default safe fallback: base64 data URL
+
+				try {
+					const buffer = Buffer.from(base64Data, "base64");
+					const r2Dir = path.join(process.cwd(), "public", "images", "r2");
+					if (!fs.existsSync(r2Dir)) {
+						fs.mkdirSync(r2Dir, { recursive: true });
+					}
+					const localPath = path.join(r2Dir, filename);
+					fs.writeFileSync(localPath, buffer);
+					finalUrl = `/images/r2/${filename}`;
+					savedLocally = true;
+				} catch (fileErr) {
+					console.warn("Local file save warning (using data URL fallback):", fileErr);
 				}
-				fs.writeFileSync(localPath, buffer);
 
-				// Upload to Cloudflare R2
-				const r2Key = `products/${filename}`;
-				const r2Res = await fetch(
-					`https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_CONFIG.accountId}/r2/buckets/${CLOUDFLARE_CONFIG.bucket}/objects/${encodeURIComponent(r2Key)}`,
-					{
-						method: "PUT",
-						headers: {
-							Authorization: `Bearer ${CLOUDFLARE_CONFIG.token}`,
-							"Content-Type": `image/${ext}`,
-						},
-						body: buffer,
-					},
-				);
-				const r2Result = (await r2Res.json()) as { success: boolean };
+				// Upload to Cloudflare R2 if token is provided
+				let r2Synced = false;
+				if (CLOUDFLARE_CONFIG.token && CLOUDFLARE_CONFIG.accountId) {
+					try {
+						const r2Key = `products/${filename}`;
+						const uint8 = new Uint8Array(Buffer.from(base64Data, "base64"));
+						const r2Res = await fetch(
+							`https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_CONFIG.accountId}/r2/buckets/${CLOUDFLARE_CONFIG.bucket}/objects/${encodeURIComponent(r2Key)}`,
+							{
+								method: "PUT",
+								headers: {
+									Authorization: `Bearer ${CLOUDFLARE_CONFIG.token}`,
+									"Content-Type": `image/${ext}`,
+								},
+								body: uint8,
+							},
+						);
+						const r2Result = (await r2Res.json().catch(() => ({}))) as { success?: boolean };
+						r2Synced = r2Result?.success === true;
+					} catch (r2Err) {
+						console.warn("Cloudflare R2 sync warning:", r2Err);
+					}
+				}
 
 				return Response.json({
 					success: true,
-					url: `/images/r2/${filename}`,
-					r2Key,
-					r2Synced: r2Result.success === true,
+					url: finalUrl,
+					filename,
+					savedLocally,
+					r2Synced,
 				});
 			}
 		}

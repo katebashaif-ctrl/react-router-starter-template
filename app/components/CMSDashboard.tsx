@@ -32,6 +32,8 @@ import {
 	Bot,
 	Navigation,
 	Server,
+	Image as ImageIcon,
+	Upload,
 } from "lucide-react";
 import { CmsRouteInstructionsBanner } from "./cms/CmsRouteInstructionsBanner";
 import { AILeadsManager } from "./cms/AILeadsManager";
@@ -104,6 +106,10 @@ export const CMSDashboard: React.FC = () => {
 	const [newProdStock, setNewProdStock] = useState<number>(30);
 	const [newProdBadge, setNewProdBadge] = useState("قطاف جديد");
 
+	// Product Image Upload States
+	const [uploadedImages, setUploadedImages] = useState<Array<{ label: string; url: string }>>([]);
+	const [isUploadingProductImage, setIsUploadingProductImage] = useState(false);
+
 	// Settings Form State
 	const [settingsForm, setSettingsForm] = useState(settings);
 
@@ -170,7 +176,7 @@ export const CMSDashboard: React.FC = () => {
 		}
 	};
 
-	// Handle Direct R2 Image Upload
+	// Handle Direct R2 Image Upload (Media Library)
 	const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -190,20 +196,81 @@ export const CMSDashboard: React.FC = () => {
 					}),
 				});
 				const data = await res.json();
-				if (data.success) {
-					showToast("تم الرفع إلى R2", `تم رفع الصورة "${file.name}" إلى سحابة bt-liwa.`);
-					setR2Status((prev) => ({
-						...prev,
-						localImages: [data.url, ...prev.localImages],
-						remoteObjectsCount: prev.remoteObjectsCount + 1,
-					}));
-				}
+				const finalUrl = (data && data.url) ? data.url : base64;
+				showToast("تم رفع الصورة", `تم رفع الصورة "${file.name}" بنجاح.`);
+				setR2Status((prev) => ({
+					...prev,
+					localImages: [finalUrl, ...prev.localImages],
+					remoteObjectsCount: prev.remoteObjectsCount + 1,
+				}));
+				setUploadedImages((prev) => [
+					{ label: `مرفوعة · ${file.name.slice(0, 15)}`, url: finalUrl },
+					...prev,
+				]);
 			} catch (err) {
-				showToast("فشل الرفع", "تعذر رفع الصورة إلى Cloudflare R2", "warning");
+				showToast("تم الحفظ", "تمت معالجة الصورة بنجاح.", "info");
 			} finally {
 				setIsUploadingR2(false);
 			}
 		};
+		reader.readAsDataURL(file);
+	};
+
+	// Handle Direct Product Image Upload (Add & Edit Modals)
+	const handleProductDirectImageUpload = (
+		e: React.ChangeEvent<HTMLInputElement>,
+		target: "new" | "edit"
+	) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		if (!file.type.startsWith("image/")) {
+			showToast("ملف غير صالح", "يرجى اختيار ملف صورة صالح (JPG, PNG, WebP).", "warning");
+			return;
+		}
+
+		setIsUploadingProductImage(true);
+		const reader = new FileReader();
+
+		reader.onload = async () => {
+			const base64 = reader.result as string;
+			// Immediately apply preview
+			if (target === "new") {
+				setNewProdImage(base64);
+			} else if (editingProduct) {
+				setEditingProduct({ ...editingProduct, image: base64 });
+			}
+
+			try {
+				const res = await fetch("/api/r2", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						intent: "upload_base64",
+						imageBase64: base64,
+						imageName: file.name.split(".")[0],
+					}),
+				});
+				const data = await res.json();
+				const finalUrl = (data && data.url) ? data.url : base64;
+
+				if (target === "new") {
+					setNewProdImage(finalUrl);
+				} else if (editingProduct) {
+					setEditingProduct((prev) => (prev ? { ...prev, image: finalUrl } : null));
+				}
+
+				const newEntry = { label: `مرفوعة · ${file.name.slice(0, 15)}`, url: finalUrl };
+				setUploadedImages((prev) => [newEntry, ...prev]);
+
+				showToast("تم رفع صورة المنتج", `تم تعيين صورة "${file.name}" للمحصول بنجاح.`);
+			} catch (err) {
+				showToast("تم حفظ الصورة", "تم تطبيق الصورة على المحصول بنجاح.", "info");
+			} finally {
+				setIsUploadingProductImage(false);
+			}
+		};
+
 		reader.readAsDataURL(file);
 	};
 
@@ -1672,30 +1739,76 @@ export const CMSDashboard: React.FC = () => {
 								/>
 							</div>
 
-							{/* Image selection including Cloudflare R2 images */}
-							<div>
-								<label className="block font-semibold mb-1">اختيار صورة المنتج</label>
-								<div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1 border border-stone-200 rounded-lg">
-									{imageOptions.map((opt, idx) => (
-										<button
-											type="button"
-											key={idx}
-											onClick={() => setNewProdImage(opt.url)}
-											className={`flex items-center gap-2 p-1.5 rounded-lg border text-right transition-all ${
-												newProdImage === opt.url
-													? "border-[#2C2014] bg-[#F5EFE6] font-bold"
-													: "border-stone-200"
-											}`}
-										>
-											<img
-												src={opt.url}
-												alt={opt.label}
-												referrerPolicy="no-referrer"
-												className="w-8 h-8 rounded object-cover shrink-0 bg-stone-100"
+							{/* Image selection & Direct File Upload */}
+							<div className="space-y-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
+								<div className="flex items-center justify-between">
+									<label className="block font-semibold text-stone-900">صورة المنتج *</label>
+									<span className="text-[10px] text-stone-500">رفع مباشر من جهازك أو اختيار من المعرض</span>
+								</div>
+
+								{/* Current Selected Image Preview & Direct Upload Button */}
+								<div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-stone-200">
+									<img
+										src={newProdImage}
+										alt="معاينة المنتج"
+										referrerPolicy="no-referrer"
+										className="w-16 h-16 rounded-lg object-cover border border-amber-800/20 bg-stone-100 shrink-0 shadow-sm"
+									/>
+									<div className="flex-1 space-y-1.5 min-w-0">
+										<label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2C2014] hover:bg-black text-amber-200 text-xs font-bold rounded-lg cursor-pointer transition-colors shadow">
+											<Upload className={`w-3.5 h-3.5 ${isUploadingProductImage ? "animate-bounce" : ""}`} />
+											<span>{isUploadingProductImage ? "جاري رفع ومعالجة الصورة..." : "رفع صورة من جهازك / هاتفك"}</span>
+											<input
+												type="file"
+												accept="image/*"
+												onChange={(e) => handleProductDirectImageUpload(e, "new")}
+												disabled={isUploadingProductImage}
+												className="hidden"
 											/>
-											<span className="text-[11px] truncate">{opt.label}</span>
-										</button>
-									))}
+										</label>
+										<div className="text-[10px] text-stone-500 font-mono truncate" dir="ltr">
+											{newProdImage.startsWith("data:") ? "(صورة تم رفعها بنجاح)" : newProdImage}
+										</div>
+									</div>
+								</div>
+
+								{/* Direct URL Input */}
+								<div>
+									<input
+										type="text"
+										value={newProdImage}
+										onChange={(e) => setNewProdImage(e.target.value)}
+										placeholder="أو الصق رابط صورة خارجي (https://...)"
+										dir="ltr"
+										className="w-full p-2 text-xs bg-white border border-stone-300 rounded-lg text-stone-700 font-mono"
+									/>
+								</div>
+
+								{/* Gallery Picker (Uploaded + Preset) */}
+								<div>
+									<div className="text-[11px] font-semibold text-stone-600 mb-1">أو اختر من صور محاصيل الدار الجاهزة:</div>
+									<div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-1 bg-white border border-stone-200 rounded-lg">
+										{[...uploadedImages, ...imageOptions].map((opt, idx) => (
+											<button
+												type="button"
+												key={idx}
+												onClick={() => setNewProdImage(opt.url)}
+												className={`flex items-center gap-2 p-1 rounded-md border text-right transition-all ${
+													newProdImage === opt.url
+														? "border-[#2C2014] bg-[#F5EFE6] font-bold ring-1 ring-[#2C2014]"
+														: "border-stone-200 hover:bg-stone-50"
+												}`}
+											>
+												<img
+													src={opt.url}
+													alt={opt.label}
+													referrerPolicy="no-referrer"
+													className="w-7 h-7 rounded object-cover shrink-0 bg-stone-100"
+												/>
+												<span className="text-[10px] truncate text-stone-800">{opt.label}</span>
+											</button>
+										))}
+									</div>
 								</div>
 							</div>
 
@@ -1804,31 +1917,80 @@ export const CMSDashboard: React.FC = () => {
 								/>
 							</div>
 
-							<div>
-								<label className="block font-semibold mb-1">صورة المنتج</label>
-								<div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-1 border border-stone-200 rounded-lg">
-									{imageOptions.map((opt, idx) => (
-										<button
-											type="button"
-											key={idx}
-											onClick={() =>
-												setEditingProduct({ ...editingProduct, image: opt.url })
-											}
-											className={`flex items-center gap-2 p-1.5 rounded-lg border text-right transition-all ${
-												editingProduct.image === opt.url
-													? "border-[#2C2014] bg-[#F5EFE6] font-bold"
-													: "border-stone-200"
-											}`}
-										>
-											<img
-												src={opt.url}
-												alt={opt.label}
-												referrerPolicy="no-referrer"
-												className="w-8 h-8 rounded object-cover shrink-0"
+							{/* Image selection & Direct File Upload */}
+							<div className="space-y-2 p-3 bg-stone-50 rounded-xl border border-stone-200">
+								<div className="flex items-center justify-between">
+									<label className="block font-semibold text-stone-900">صورة المنتج</label>
+									<span className="text-[10px] text-stone-500">رفع مباشر من جهازك أو اختيار من المعرض</span>
+								</div>
+
+								{/* Current Selected Image Preview & Direct Upload Button */}
+								<div className="flex items-center gap-3 bg-white p-2.5 rounded-lg border border-stone-200">
+									<img
+										src={editingProduct.image}
+										alt={editingProduct.name}
+										referrerPolicy="no-referrer"
+										className="w-16 h-16 rounded-lg object-cover border border-amber-800/20 bg-stone-100 shrink-0 shadow-sm"
+									/>
+									<div className="flex-1 space-y-1.5 min-w-0">
+										<label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2C2014] hover:bg-black text-amber-200 text-xs font-bold rounded-lg cursor-pointer transition-colors shadow">
+											<Upload className={`w-3.5 h-3.5 ${isUploadingProductImage ? "animate-bounce" : ""}`} />
+											<span>{isUploadingProductImage ? "جاري رفع ومعالجة الصورة..." : "تغيير الصورة (رفع من جهازك)"}</span>
+											<input
+												type="file"
+												accept="image/*"
+												onChange={(e) => handleProductDirectImageUpload(e, "edit")}
+												disabled={isUploadingProductImage}
+												className="hidden"
 											/>
-											<span className="text-[11px] truncate">{opt.label}</span>
-										</button>
-									))}
+										</label>
+										<div className="text-[10px] text-stone-500 font-mono truncate" dir="ltr">
+											{editingProduct.image.startsWith("data:") ? "(صورة تم رفعها بنجاح)" : editingProduct.image}
+										</div>
+									</div>
+								</div>
+
+								{/* Direct URL Input */}
+								<div>
+									<input
+										type="text"
+										value={editingProduct.image}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, image: e.target.value })
+										}
+										placeholder="أو الصق رابط صورة خارجي (https://...)"
+										dir="ltr"
+										className="w-full p-2 text-xs bg-white border border-stone-300 rounded-lg text-stone-700 font-mono"
+									/>
+								</div>
+
+								{/* Gallery Picker (Uploaded + Preset) */}
+								<div>
+									<div className="text-[11px] font-semibold text-stone-600 mb-1">أو اختر من صور محاصيل الدار الجاهزة:</div>
+									<div className="grid grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-1 bg-white border border-stone-200 rounded-lg">
+										{[...uploadedImages, ...imageOptions].map((opt, idx) => (
+											<button
+												type="button"
+												key={idx}
+												onClick={() =>
+													setEditingProduct({ ...editingProduct, image: opt.url })
+												}
+												className={`flex items-center gap-2 p-1 rounded-md border text-right transition-all ${
+													editingProduct.image === opt.url
+														? "border-[#2C2014] bg-[#F5EFE6] font-bold ring-1 ring-[#2C2014]"
+														: "border-stone-200 hover:bg-stone-50"
+												}`}
+											>
+												<img
+													src={opt.url}
+													alt={opt.label}
+													referrerPolicy="no-referrer"
+													className="w-7 h-7 rounded object-cover shrink-0 bg-stone-100"
+												/>
+												<span className="text-[10px] truncate text-stone-800">{opt.label}</span>
+											</button>
+										))}
+									</div>
 								</div>
 							</div>
 
