@@ -20,7 +20,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 // POST /api/meta/webhook - Receive Live Lead Ads Webhooks from Meta
 export async function action({ request }: ActionFunctionArgs) {
 	try {
-		const payload = await request.json();
+		const payload = (await request.json()) as any;
 
 		// Handle Meta Lead Generation Webhook Event
 		if (payload.object === "page") {

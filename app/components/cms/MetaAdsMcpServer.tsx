@@ -174,7 +174,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 					accessToken: targetToken,
 				}),
 			});
-			const data = await res.json();
+			const data = (await res.json()) as any;
 
 			if (data.success) {
 				setTokenVerification({
@@ -230,7 +230,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 					adAccountId: adAccountId.trim(),
 				}),
 			});
-			const data = await res.json();
+			const data = (await res.json()) as any;
 
 			setLiveApiInspector({
 				endpoint: data.endpoint || "https://graph.facebook.com/v21.0/me/adaccounts",
@@ -301,7 +301,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 					adAccountId: targetId,
 				}),
 			});
-			const data = await res.json();
+			const data = (await res.json()) as any;
 
 			setLiveApiInspector({
 				endpoint: data.endpoint || `https://graph.facebook.com/v21.0/${targetId}`,
@@ -348,7 +348,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 				}),
 			});
 
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			if (data.success && data.campaign) {
 				setCreatedCampResult(data);
 				// Add to store state
@@ -395,7 +395,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 				}),
 			});
 
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			const latency = Date.now() - startTime;
 
 			if (data.success) {
@@ -420,14 +420,20 @@ export const MetaAdsMcpServer: React.FC = () => {
 	// 7. Direct sync of leads into Store Leads CRM
 	const handleSyncLeadsToCms = () => {
 		const sampleSyncLead = {
-			name: "سعادة سعيد المنصوري",
+			customerName: "سعادة سعيد المنصوري",
 			phone: "+971 50 882 1904",
-			city: "أبوظبي - البطين",
-			interestedProducts: ["فقع زبيدي طازج 3 كجم", "رطب إخلاص ليوا فاخر"],
-			status: "NEW" as const,
+			emirate: "أبوظبي - البطين",
+			interestedProduct: "فقع زبيدي طازج 3 كجم",
+			quantityEstimated: "3 كجم",
+			budgetAED: 1850,
+			leadStatus: "new" as const,
 			sourceCampaign: "حملة استقطاب مجالس الإمارات (Meta Ads MCP)",
 			notes: "طلب استفسار فوري عبر إعلان Meta Ads MCP للحجز المسبق لرمضان",
 			totalEstimatedValueAED: 1850,
+			name: "سعادة سعيد المنصوري",
+			city: "أبوظبي - البطين",
+			interestedProducts: ["فقع زبيدي طازج 3 كجم", "رطب إخلاص ليوا فاخر"],
+			status: "NEW",
 		};
 		addMarketingLead(sampleSyncLead);
 		showToast("تمت مزامنة عميل جديد", "تم استيراد العميل المحتمل من نموذج Meta Lead Form بنجاح إلى جدول العملاء.");

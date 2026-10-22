@@ -99,7 +99,7 @@ export const MetaCampaignsManager: React.FC = () => {
 					season: "موسم القيظ وفقع الوسم",
 				}),
 			});
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			if (data.success && data.data?.variants) {
 				setAiVariants(data.data.variants);
 				showToast("الذكاء الاصطناعي", "تم توليد 3 أفكار إعلانية إماراتية مخصصة لحملتك.");

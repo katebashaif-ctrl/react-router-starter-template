@@ -86,10 +86,10 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 				body: JSON.stringify(payload),
 			});
 
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			setToolExecutionResult({
 				timestamp: new Date().toLocaleTimeString("ar-AE"),
-				...data,
+				...(data && typeof data === "object" ? data : {}),
 			});
 
 			if (data.success) {

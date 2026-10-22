@@ -202,7 +202,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const fetchCatalogFromR2 = async (): Promise<boolean> => {
 		try {
 			const res = await fetch("/api/r2?intent=get_catalog");
-			const json = await res.json();
+			const json = (await res.json()) as any;
 			if (json.success && json.fromR2 && json.data && Array.isArray(json.data.products) && json.data.products.length > 0) {
 				setProducts(json.data.products);
 				if (json.data.settings) {
@@ -233,7 +233,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 					},
 				}),
 			});
-			const json = await res.json();
+			const json = (await res.json()) as any;
 			if (json.success && json.r2Synced) {
 				setIsR2Synced(true);
 				return true;
@@ -455,7 +455,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 						imageName: productData.nameEn || productData.name || "product",
 					}),
 				});
-				const uploadData = await uploadRes.json();
+				const uploadData = (await uploadRes.json()) as any;
 				if (uploadData.success && uploadData.url) {
 					finalImage = uploadData.url;
 				}

@@ -10,4 +10,5 @@ export default [
 	route("api/ai/marketing", "routes/api.ai.marketing.ts"),
 	route("api/meta/mcp", "routes/api.meta.mcp.ts"),
 	route("api/meta/webhook", "routes/api.meta.webhook.ts"),
+	route("*", "routes/catchall.tsx"),
 ] satisfies RouteConfig;

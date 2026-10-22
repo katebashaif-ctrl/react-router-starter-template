@@ -118,6 +118,11 @@ export interface MarketingLead {
 	aiScore?: "high" | "medium" | "low";
 	aiSummary?: string;
 	createdAt: string;
+	totalEstimatedValueAED?: number;
+	name?: string;
+	city?: string;
+	interestedProducts?: string[];
+	status?: string;
 }
 
 export interface MetaMarketingApiConfig {
