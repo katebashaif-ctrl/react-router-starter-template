@@ -43,7 +43,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 	const [activeClientTab, setActiveClientTab] = useState<"claude" | "chatgpt" | "curl">("claude");
 
 	// Credentials & Identifiers (No fake accounts by default!)
-	const [metaAppId, setMetaAppId] = useState(metaConfig.appId || "");
+	const [metaAppId, setMetaAppId] = useState((metaConfig as any).appId || "");
 	const [adAccountId, setAdAccountId] = useState(metaConfig.adAccountId || "");
 	const [accessToken, setAccessToken] = useState(metaConfig.accessToken || "");
 
@@ -125,7 +125,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 		setProbeStatus((prev) => ({ ...prev, loading: true }));
 		try {
 			const res = await fetch("/api/meta/mcp?action=probe_mcp_server");
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			if (data.success) {
 				setProbeStatus({
 					tested: true,
@@ -354,11 +354,16 @@ export const MetaAdsMcpServer: React.FC = () => {
 				// Add to store state
 				addMetaCampaign({
 					name: data.campaign.name,
-					objective: newCampObjective === "OUTCOME_LEADS" ? "LEAD_GENERATION" : newCampObjective === "OUTCOME_SALES" ? "CONVERSIONS" : "CATALOG_SALES",
+					objective: (newCampObjective as any) || "OUTCOME_LEADS",
 					status: "ACTIVE",
-					dailyBudgetAED: newCampBudget,
+					dailyBudget: newCampBudget,
 					targetEmirates: ["أبوظبي", "دبي", "الشارقة", "العين"],
 					targetInterests: ["تمور ورطب فاخر", "فقع وخيرات طبيعية", "ضيافة مجالس الإمارات"],
+					productCategory: "all",
+					headline: data.campaign.name,
+					primaryText: "أطايب التين والرطب الإماراتي الفاخر من واحات ليوا ومزارع الدار",
+					callToAction: "ORDER_NOW",
+					imageUrl: "/images/product_emirati_rutab_1792506810615.jpg",
 				});
 
 				showToast("تم تسجيل الحملة بنجاح", `تم إنشاء الحملة [${data.campaign.name}] وتفعيلها في المتجر.`);

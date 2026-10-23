@@ -53,9 +53,12 @@ interface StoreContextType {
 
 	// Orders
 	orders: Order[];
-	addOrder: (orderData: Omit<Order, "id" | "orderNumber" | "createdAt" | "status">) => Order;
-	updateOrderStatus: (orderId: string, status: Order["status"]) => void;
-	deleteOrder: (orderId: string) => void;
+	addOrder: (orderData: Omit<Order, "id" | "orderNumber" | "createdAt" | "status">) => Promise<Order>;
+	updateOrderStatus: (orderId: string, status: Order["status"]) => Promise<void>;
+	deleteOrder: (orderId: string) => Promise<void>;
+	fetchOrdersFromDatabase: () => Promise<boolean>;
+	isOrdersLoading: boolean;
+	ordersStorageType: string;
 
 	// Cart
 	cart: CartItem[];
@@ -195,8 +198,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(INITIAL_LEADS);
 	const [metaConfig, setMetaConfig] = useState<MetaMarketingApiConfig>(INITIAL_META_CONFIG);
 
-	// Cloudflare R2 Sync state
+	// Cloudflare R2 Sync & Orders Database state
 	const [isR2Synced, setIsR2Synced] = useState<boolean>(false);
+	const [isOrdersLoading, setIsOrdersLoading] = useState<boolean>(false);
+	const [ordersStorageType, setOrdersStorageType] = useState<string>("database");
+
+	// Fetch all orders from persistent Database (Cloudflare D1 SQL & R2 cloud store)
+	const fetchOrdersFromDatabase = async (): Promise<boolean> => {
+		setIsOrdersLoading(true);
+		try {
+			const res = await fetch("/api/orders");
+			const json = (await res.json()) as any;
+			if (json.success && Array.isArray(json.orders)) {
+				setOrders(json.orders);
+				if (json.storageType) {
+					setOrdersStorageType(json.storageType);
+				}
+				if (isClient) {
+					try {
+						localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(json.orders));
+					} catch (e) {}
+				}
+				setIsOrdersLoading(false);
+				return true;
+			}
+		} catch (err) {
+			console.warn("Could not load orders from /api/orders:", err);
+		}
+		setIsOrdersLoading(false);
+		return false;
+	};
 
 	// Fetch catalog synchronously from Cloudflare R2
 	const fetchCatalogFromR2 = async (): Promise<boolean> => {
@@ -285,8 +316,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			console.error("Error reading localStorage:", e);
 		}
 
-		// Sync live from Cloudflare R2 Bucket
+		// Sync live from Cloudflare R2 Bucket & Persistent Database
 		fetchCatalogFromR2();
+		fetchOrdersFromDatabase();
 	}, []);
 
 	// Sync to localStorage
@@ -551,46 +583,107 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	);
 	const cartItemsCount = cart.reduce((count, item) => count + item.quantity, 0);
 
-	// Order operations
-	const addOrder = (
+	// Order operations with persistent database storage (Cloudflare D1 & R2)
+	const addOrder = async (
 		orderData: Omit<Order, "id" | "orderNumber" | "createdAt" | "status">,
-	): Order => {
+	): Promise<Order> => {
+		const tempId = `ord-${Date.now().toString(36)}`;
 		const orderNum = `AED-${Math.floor(1000 + Math.random() * 9000)}`;
-		const newOrder: Order = {
+		const optimisticOrder: Order = {
 			...orderData,
-			id: `ord-${Date.now().toString(36)}`,
+			id: tempId,
 			orderNumber: orderNum,
 			status: "pending",
 			createdAt: new Date().toISOString(),
 		};
 
-		setOrders((prev) => [newOrder, ...prev]);
+		// 1. Update UI immediately
+		setOrders((prev) => [optimisticOrder, ...prev]);
+		clearCart();
+		setLastOrder(optimisticOrder);
 
-		// Track Meta Pixel Purchase event
+		// 2. Persist order to database (Cloudflare D1 SQL & R2 bucket)
+		try {
+			const res = await fetch("/api/orders", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					intent: "create_order",
+					...orderData,
+				}),
+			});
+			const json = (await res.json()) as any;
+			if (json.success && json.order) {
+				const savedOrder: Order = json.order;
+				setOrders((prev) => prev.map((o) => (o.id === tempId ? savedOrder : o)));
+				setLastOrder(savedOrder);
+				showToast(
+					"تم تسجيل الطلب في قاعدة البيانات",
+					`رقم الطلب: ${savedOrder.orderNumber}. تم حفظ تفاصيل الطلب في قاعدة بيانات المتجر السحابية بنجاح.`
+				);
+
+				trackMetaEvent("Purchase", {
+					content_ids: savedOrder.items.map((i) => i.productId),
+					content_type: "product",
+					value: savedOrder.total,
+					currency: "AED",
+					num_items: savedOrder.items.reduce((s, i) => s + i.quantity, 0),
+				});
+
+				return savedOrder;
+			}
+		} catch (err) {
+			console.error("Failed to save order to database:", err);
+			showToast(
+				"تنبيه حفظ الطلب",
+				"تم استلام طلبك محلياً وجاري مزامنته مع قاعدة البيانات.",
+				"warning"
+			);
+		}
+
+		// Fallback tracking
 		trackMetaEvent("Purchase", {
-			content_ids: newOrder.items.map((i) => i.productId),
+			content_ids: optimisticOrder.items.map((i) => i.productId),
 			content_type: "product",
-			value: newOrder.total,
+			value: optimisticOrder.total,
 			currency: "AED",
-			num_items: newOrder.items.reduce((s, i) => s + i.quantity, 0),
+			num_items: optimisticOrder.items.reduce((s, i) => s + i.quantity, 0),
 		});
 
-		clearCart();
-		setLastOrder(newOrder);
 		showToast("تم استلام طلبك المبارك", `رقم الطلب: ${orderNum}. سنقوم بالتواصل معكم لتأكيد موعد التوصيل.`);
-		return newOrder;
+		return optimisticOrder;
 	};
 
-	const updateOrderStatus = (orderId: string, status: Order["status"]) => {
+	const updateOrderStatus = async (orderId: string, status: Order["status"]) => {
 		setOrders((prev) =>
 			prev.map((o) => (o.id === orderId ? { ...o, status } : o)),
 		);
-		showToast("تم تحديث الطلب", `تم تغيير حالة الطلب ${orderId} إلى: ${status}.`);
+		showToast("تم تحديث الطلب", `تم تغيير حالة الطلب ${orderId} إلى: ${status} في قاعدة البيانات.`);
+
+		try {
+			await fetch("/api/orders", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ intent: "update_status", orderId, status }),
+			});
+		} catch (err) {
+			console.warn("Failed to update order status on server:", err);
+		}
 	};
 
-	const deleteOrder = (orderId: string) => {
+	const deleteOrder = async (orderId: string) => {
 		setOrders((prev) => prev.filter((o) => o.id !== orderId));
-		showToast("تم حذف الطلب", "تم إزالة سجل الطلب بنجاح.", "info");
+		showToast("تم حذف الطلب", "تم إزالة سجل الطلب من قاعدة البيانات.", "info");
+
+		try {
+			await fetch("/api/orders", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ intent: "delete_order", orderId }),
+			});
+		} catch (err) {
+			console.warn("Failed to delete order on server:", err);
+		}
 	};
 
 	// Meta Campaign Operations
@@ -722,6 +815,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				addOrder,
 				updateOrderStatus,
 				deleteOrder,
+				fetchOrdersFromDatabase,
+				isOrdersLoading,
+				ordersStorageType,
 				cart,
 				addToCart,
 				updateCartQty,

@@ -211,7 +211,7 @@ export const McpConfigSettings: React.FC = () => {
 				}),
 			});
 
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			setConnectionStatus({
 				tested: true,
 				success: data.success,

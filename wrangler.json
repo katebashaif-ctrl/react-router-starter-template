@@ -17,5 +17,12 @@
 			"binding": "BUCKET",
 			"bucket_name": "bt-liwa"
 		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "teen-liwa-orders",
+			"database_id": "teen-liwa-orders-db"
+		}
 	]
 }

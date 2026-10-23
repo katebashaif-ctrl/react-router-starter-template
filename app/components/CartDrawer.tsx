@@ -66,7 +66,7 @@ export const CartDrawer: React.FC = () => {
 		return Object.keys(newErrors).length === 0;
 	};
 
-	const handleCheckout = (e: React.FormEvent) => {
+	const handleCheckout = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
 		if (cart.length === 0) return;
@@ -82,7 +82,7 @@ export const CartDrawer: React.FC = () => {
 			packagingOption: item.packagingOption,
 		}));
 
-		const newOrder = addOrder({
+		const newOrder = await addOrder({
 			customerName,
 			customerPhone,
 			customerEmirate,
@@ -440,7 +440,7 @@ export const CartDrawer: React.FC = () => {
 								className="w-full py-3.5 px-4 bg-[#2C2014] text-amber-200 text-sm font-bold rounded-xl hover:bg-black transition-colors shadow flex items-center justify-center gap-2"
 							>
 								{isSubmitting ? (
-									<span>جاري معالجة الطلب...</span>
+									<span>جاري تسجيل الطلب في قاعدة البيانات...</span>
 								) : paymentMethod === "whatsapp" ? (
 									<>
 										<MessageSquare className="w-4 h-4 text-emerald-400" />

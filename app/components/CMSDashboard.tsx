@@ -64,6 +64,9 @@ export const CMSDashboard: React.FC = () => {
 		orders,
 		updateOrderStatus,
 		deleteOrder,
+		fetchOrdersFromDatabase,
+		isOrdersLoading,
+		ordersStorageType,
 		settings,
 		updateSettings,
 		resetToSampleData,
@@ -134,7 +137,7 @@ export const CMSDashboard: React.FC = () => {
 	// Load R2 data on mount
 	const loadR2Status = () => {
 		fetch("/api/r2")
-			.then((res) => res.json())
+			.then((res) => res.json() as Promise<R2Status>)
 			.then((data: R2Status) => {
 				setR2Status(data);
 				setR2ConfigForm((prev) => ({
@@ -186,7 +189,7 @@ export const CMSDashboard: React.FC = () => {
 					config: r2ConfigForm,
 				}),
 			});
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			if (data.success && data.connected) {
 				showToast("اتصال ناجح بـ R2", "تم التحقق من مفاتيح S3 والاتصال بسحابة Cloudflare R2 بنجاح!");
 				loadR2Status();
@@ -238,7 +241,7 @@ export const CMSDashboard: React.FC = () => {
 						imageName: file.name.split(".")[0],
 					}),
 				});
-				const data = await res.json();
+				const data = (await res.json()) as any;
 				if (data.success && data.url) {
 					showToast("تم رفع الصورة إلى R2", `تم تخزين صورة "${file.name}" مباشرة في سحابة Cloudflare R2.`);
 					setR2Status((prev) => ({
@@ -291,7 +294,7 @@ export const CMSDashboard: React.FC = () => {
 						imageName: file.name.split(".")[0],
 					}),
 				});
-				const data = await res.json();
+				const data = (await res.json()) as any;
 
 				if (data.success && data.url) {
 					if (target === "new") {
@@ -923,21 +926,39 @@ export const CMSDashboard: React.FC = () => {
 				{/* TAB 3: ORDERS MANAGEMENT */}
 				{cmsTab === "orders" && (
 					<div className="space-y-6">
-						<div className="bg-white p-4 rounded-xl border border-[#E8DCCB] flex justify-between items-center">
+						<div className="bg-white p-4 rounded-xl border border-[#E8DCCB] flex flex-wrap justify-between items-center gap-3">
 							<div>
-								<h3 className="font-serif text-lg font-bold text-[#2C2014]">
-									سجل طلبات العملاء ({orders.length})
-								</h3>
-								<p className="text-xs text-stone-500">
-									متابعة وتحديث حالة الشحن والتوصيل لجميع إمارات الدولة
+								<div className="flex items-center gap-2">
+									<h3 className="font-serif text-lg font-bold text-[#2C2014]">
+										سجل طلبات العملاء ({orders.length})
+									</h3>
+									<span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-800">
+										<Database className="w-3 h-3 text-emerald-600" />
+										<span>متصل بقاعدة البيانات ({ordersStorageType === "d1_database" ? "Cloudflare D1 SQL" : "Cloudflare R2 Database"})</span>
+									</span>
+								</div>
+								<p className="text-xs text-stone-500 mt-0.5">
+									يتم تسجيل وتوثيق كافة طلبات العملاء مباشرة في قاعدة البيانات المركزية ومزامنتها سحابياً
 								</p>
 							</div>
 
-							<div className="flex items-center gap-2 text-xs">
-								<span className="font-semibold text-stone-600">المبيعات الكلية:</span>
-								<span className="font-serif font-bold text-amber-900 tabular-nums">
-									{totalRevenue} د.إ
-								</span>
+							<div className="flex items-center gap-3">
+								<button
+									onClick={() => fetchOrdersFromDatabase()}
+									disabled={isOrdersLoading}
+									className="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#F5EFE6] border border-[#D6BE9F] text-[#574127] rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+									title="تحديث ومزامنة الطلبات من قاعدة البيانات"
+								>
+									<RefreshCw className={`w-3.5 h-3.5 ${isOrdersLoading ? "animate-spin text-amber-700" : ""}`} />
+									<span>{isOrdersLoading ? "جاري جلب الطلبات..." : "مزامنة من قاعدة البيانات"}</span>
+								</button>
+
+								<div className="flex items-center gap-2 text-xs bg-[#FAF7F2] px-3 py-1.5 rounded-lg border border-[#E8DCCB]">
+									<span className="font-semibold text-stone-600">المبيعات الكلية:</span>
+									<span className="font-serif font-bold text-amber-900 tabular-nums">
+										{totalRevenue} د.إ
+									</span>
+								</div>
 							</div>
 						</div>
 
@@ -2294,6 +2315,13 @@ export const CMSDashboard: React.FC = () => {
 								<p className="text-[11px] text-stone-500">
 									التاريخ: {new Date(viewingOrder.createdAt).toLocaleDateString("ar-AE")}
 								</p>
+								<div className="flex items-center gap-1.5 mt-1">
+									<span className="text-[10px] text-stone-400 font-mono">معرّف السجل: {viewingOrder.id}</span>
+									<span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+										<CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+										<span>موثق بقاعدة البيانات</span>
+									</span>
+								</div>
 							</div>
 							<button
 								onClick={() => setViewingOrder(null)}

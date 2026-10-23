@@ -99,7 +99,7 @@ export const AILeadsManager: React.FC = () => {
 				}),
 			});
 
-			const data = await res.json();
+			const data = (await res.json()) as any;
 			if (data.success && data.data) {
 				setAiResult(data.data);
 				if (data.data.aiScore) {

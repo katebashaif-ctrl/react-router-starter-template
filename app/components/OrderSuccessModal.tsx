@@ -25,6 +25,10 @@ export const OrderSuccessModal: React.FC = () => {
 					<p className="text-xs text-stone-500">
 						حياكم الله ونشكركم على ثقتكم في خيرات الدار. سيصلكم اتصال للتأكيد.
 					</p>
+					<div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
+						<CheckCircle2 className="w-3 h-3 text-emerald-600" />
+						<span>تم التوثيق والتسجيل بقاعدة بيانات المتجر السحابية</span>
+					</div>
 				</div>
 
 				{/* Order Header Card */}

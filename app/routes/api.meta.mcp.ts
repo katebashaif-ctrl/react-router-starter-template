@@ -448,7 +448,7 @@ export async function action({ request }: ActionFunctionArgs) {
 					const debugRes = await fetch(
 						`https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`
 					);
-					const debugData = await debugRes.json();
+					const debugData = (await debugRes.json()) as any;
 					if (debugData && debugData.data) {
 						tokenInfo = debugData.data;
 					}
@@ -481,14 +481,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
 				// Strategy 2: Fallback to /me (User token)
 				const meRes = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(token)}&fields=id,name`);
-				const meData = await meRes.json();
+				const meData = (await meRes.json()) as any;
 
 				if (meData && !meData.error) {
 					// Call Graph API /me/permissions
 					let grantedPermissions: string[] = [];
 					try {
 						const permRes = await fetch(`https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(token)}`);
-						const permData = await permRes.json();
+						const permData = (await permRes.json()) as any;
 						if (Array.isArray(permData.data)) {
 							grantedPermissions = permData.data
 								.filter((p: any) => p.status === "granted")
@@ -563,7 +563,7 @@ export async function action({ request }: ActionFunctionArgs) {
 						const res = await fetch(
 							`https://graph.facebook.com/v21.0/act_${digits}?fields=id,account_id,name,account_status,currency,timezone_name,spend_cap,amount_spent,balance,business_name&access_token=${encodeURIComponent(token)}`
 						);
-						const data = await res.json();
+						const data = (await res.json()) as any;
 						if (data && !data.error && data.id) {
 							return Response.json({
 								success: true,
@@ -593,7 +593,7 @@ export async function action({ request }: ActionFunctionArgs) {
 			try {
 				const metaUrl = `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,account_id,name,account_status,currency,timezone_name,spend_cap,amount_spent,balance,business_name&access_token=${encodeURIComponent(token)}`;
 				const res = await fetch(metaUrl);
-				const data = await res.json();
+				const data = (await res.json()) as any;
 
 				if (Array.isArray(data.data)) {
 					const accounts = data.data.map((acc: any) => ({
@@ -642,7 +642,7 @@ export async function action({ request }: ActionFunctionArgs) {
 								id: 1,
 							}),
 						});
-						const mcpData = await mcpRes.json();
+						const mcpData = (await mcpRes.json()) as any;
 						if (mcpData?.result?.content?.[0]?.text) {
 							const parsed = JSON.parse(mcpData.result.content[0].text);
 							if (Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
@@ -664,13 +664,13 @@ export async function action({ request }: ActionFunctionArgs) {
 						const debugRes = await fetch(
 							`https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`
 						);
-						const debugData = await debugRes.json();
+						const debugData = (await debugRes.json()) as any;
 						const sysUserId = debugData?.data?.user_id;
 						if (sysUserId) {
 							const assignedRes = await fetch(
 								`https://graph.facebook.com/v21.0/${sysUserId}/assigned_ad_accounts?fields=id,account_id,name,account_status,currency,timezone_name,amount_spent,balance&access_token=${encodeURIComponent(token)}`
 							);
-							const assignedData = await assignedRes.json();
+							const assignedData = (await assignedRes.json()) as any;
 							if (Array.isArray(assignedData?.data) && assignedData.data.length > 0) {
 								return Response.json({
 									success: true,
@@ -746,7 +746,7 @@ export async function action({ request }: ActionFunctionArgs) {
 				const metaUrl = `https://graph.facebook.com/v21.0/${cleanActId}?fields=id,account_id,name,account_status,currency,timezone_name,spend_cap,amount_spent,balance,business_name&access_token=${encodeURIComponent(token)}`;
 				const res = await fetch(metaUrl);
 				const latencyMs = Date.now() - startTime;
-				const data = await res.json();
+				const data = (await res.json()) as any;
 
 				if (data.error) {
 					let errorFriendly = data.error.message;
@@ -869,7 +869,7 @@ https://developers.facebook.com/tools/explorer/`,
 
 				try {
 					const res = await fetch(`https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_status,currency,timezone_name,spend_cap,amount_spent,balance&access_token=${encodeURIComponent(token)}`);
-					const data = await res.json();
+					const data = (await res.json()) as any;
 
 					if (data.error) {
 						return Response.json({

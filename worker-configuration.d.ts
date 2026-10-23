@@ -3,6 +3,7 @@
 // Runtime types generated with workerd@1.20260921.1 2025-10-08 nodejs_compat
 interface __BaseEnv_Env {
 	BUCKET: R2Bucket;
+	DB?: D1Database;
 	VALUE_FROM_CLOUDFLARE: "Hello from Cloudflare R2";
 	R2_BUCKET: "bt-liwa";
 }
