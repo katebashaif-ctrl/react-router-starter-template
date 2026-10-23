@@ -22,7 +22,8 @@
 		{
 			"binding": "DB",
 			"database_name": "teen-liwa-orders",
-			"database_id": "teen-liwa-orders-db"
+			"database_id": "teen-liwa-orders-db",
+			"migrations_dir": "./migrations"
 		}
 	]
 }

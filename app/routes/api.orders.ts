@@ -126,6 +126,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         order: result.order,
         dbSaved: result.dbSaved,
         r2Synced: result.r2Synced,
+        storageType: result.storageType,
       });
     } catch (err) {
       console.error("Error creating order:", err);
