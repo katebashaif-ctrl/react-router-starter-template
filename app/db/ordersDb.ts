@@ -23,13 +23,18 @@ let isD1SchemaInitialized = false;
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
-    order_number TEXT NOT NULL UNIQUE,
+    tracking_number TEXT NOT NULL UNIQUE,
+    order_number TEXT,
+    customer_id TEXT,
     customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_emirate TEXT NOT NULL,
-    customer_address TEXT NOT NULL,
-    notes TEXT,
-    gift_note TEXT,
+    phone TEXT,
+    customer_phone TEXT,
+    emirate TEXT,
+    customer_emirate TEXT,
+    address TEXT,
+    customer_address TEXT,
+    items TEXT,
+    items_json TEXT,
     subtotal REAL NOT NULL DEFAULT 0,
     delivery_fee REAL NOT NULL DEFAULT 0,
     discount REAL NOT NULL DEFAULT 0,
@@ -37,7 +42,8 @@ const SCHEMA_STATEMENTS = [
     payment_method TEXT NOT NULL DEFAULT 'cod',
     payment_status TEXT NOT NULL DEFAULT 'pending',
     status TEXT NOT NULL DEFAULT 'pending',
-    items_json TEXT NOT NULL,
+    notes TEXT,
+    gift_note TEXT,
     source TEXT NOT NULL DEFAULT 'web_store',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -52,25 +58,25 @@ const SCHEMA_STATEMENTS = [
     unit TEXT NOT NULL,
     packaging_option TEXT,
     total_price REAL NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   `CREATE TABLE IF NOT EXISTS customers (
+    id TEXT,
     phone TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    emirate TEXT NOT NULL,
+    name TEXT,
+    fname TEXT,
+    lname TEXT,
+    emirate TEXT,
+    address TEXT,
     last_address TEXT,
     total_orders INTEGER NOT NULL DEFAULT 1,
     total_spent REAL NOT NULL DEFAULT 0,
     last_order_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_order_tracking TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   `CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`,
-  `CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone)`,
-  `CREATE INDEX IF NOT EXISTS idx_orders_emirate ON orders(customer_emirate)`,
-  `CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)`
+  `CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`
 ];
 
 // R2 Credentials configuration for remote cloud storage backup
@@ -96,8 +102,7 @@ function getR2Client(): AwsClient | null {
 }
 
 /**
- * Robustly ensures Cloudflare D1 tables and indexes exist.
- * Uses individual prepare().run() executions to avoid multi-statement parsing issues.
+ * Robustly ensures Cloudflare D1 tables exist.
  */
 export async function initializeD1Schema(db: D1DatabaseLike, force = false): Promise<boolean> {
   if (isD1SchemaInitialized && !force) return true;
@@ -107,15 +112,12 @@ export async function initializeD1Schema(db: D1DatabaseLike, force = false): Pro
       try {
         await db.prepare(statement).run();
       } catch (stmtErr: any) {
-        // If exec is supported, fallback to exec
         if (typeof db.exec === "function") {
           try {
             await db.exec(statement);
           } catch (execErr) {
-            console.warn("D1 statement warning:", stmtErr?.message || stmtErr);
+            // Ignore if table/index already exists
           }
-        } else {
-          console.warn("D1 statement warning:", stmtErr?.message || stmtErr);
         }
       }
     }
@@ -188,25 +190,50 @@ async function fetchOrdersFromR2(): Promise<Order[] | null> {
 }
 
 /**
- * Map D1 SQL row to application Order type
+ * Map D1 SQL row to application Order type.
+ * Works seamlessly with both legacy teenliwa-db schema and new extended schema.
  */
 function mapD1RowToOrder(row: any): Order {
   let items: OrderItem[] = [];
   try {
-    items = typeof row.items_json === "string" ? JSON.parse(row.items_json) : row.items_json || [];
+    const rawItems = row.items || row.items_json;
+    const parsed = typeof rawItems === "string" ? JSON.parse(rawItems) : rawItems || [];
+    if (Array.isArray(parsed)) {
+      items = parsed.map((item: any) => ({
+        productId: item.productId || item.id || `p-${Math.random().toString(36).substring(2, 6)}`,
+        name: item.name || "منتج",
+        quantity: Number(item.quantity ?? item.qty) || 1,
+        price: Number(item.price) || 0,
+        unit: item.unit || "صندوق",
+        packagingOption: item.packagingOption,
+      }));
+    }
   } catch {
     items = [];
   }
 
+  // Parse notes or gift note if stored as JSON or string
+  let notesStr = row.notes;
+  let giftNoteStr = row.gift_note;
+  if (typeof notesStr === "string" && notesStr.startsWith("{") && notesStr.endsWith("}")) {
+    try {
+      const parsedNotes = JSON.parse(notesStr);
+      if (parsedNotes.giftNote) giftNoteStr = parsedNotes.giftNote;
+      if (parsedNotes.notes) notesStr = parsedNotes.notes;
+    } catch {}
+  }
+
+  const orderNum = row.tracking_number || row.order_number || row.id;
+
   return {
     id: row.id,
-    orderNumber: row.order_number,
-    customerName: row.customer_name,
-    customerPhone: row.customer_phone,
-    customerEmirate: row.customer_emirate,
-    customerAddress: row.customer_address,
-    notes: row.notes || undefined,
-    giftNote: row.gift_note || undefined,
+    orderNumber: orderNum,
+    customerName: row.customer_name || (row.fname ? `${row.fname} ${row.lname || ""}`.trim() : "عميل كريم"),
+    customerPhone: row.phone || row.customer_phone || "",
+    customerEmirate: row.emirate || row.customer_emirate || "أبوظبي",
+    customerAddress: row.address || row.customer_address || "",
+    notes: notesStr || undefined,
+    giftNote: giftNoteStr || undefined,
     subtotal: Number(row.subtotal) || 0,
     deliveryFee: Number(row.delivery_fee) || 0,
     discount: Number(row.discount) || 0,
@@ -219,7 +246,7 @@ function mapD1RowToOrder(row: any): Order {
 }
 
 /**
- * Seed initial sample orders into D1 if database table is empty
+ * Seed initial sample orders into D1 if database table is completely empty
  */
 async function seedInitialOrdersToD1(d1: D1DatabaseLike): Promise<void> {
   try {
@@ -227,10 +254,9 @@ async function seedInitialOrdersToD1(d1: D1DatabaseLike): Promise<void> {
       await d1
         .prepare(
           `INSERT OR IGNORE INTO orders (
-            id, order_number, customer_name, customer_phone, customer_emirate, customer_address,
-            notes, gift_note, subtotal, delivery_fee, discount, total, payment_method,
-            payment_status, status, items_json, source, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            id, tracking_number, customer_name, phone, emirate, address,
+            items, subtotal, delivery_fee, total, payment_method, status, notes, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           order.id,
@@ -239,44 +265,16 @@ async function seedInitialOrdersToD1(d1: D1DatabaseLike): Promise<void> {
           order.customerPhone,
           order.customerEmirate,
           order.customerAddress,
-          order.notes || "",
-          order.giftNote || "",
+          JSON.stringify(order.items),
           order.subtotal,
           order.deliveryFee,
-          order.discount || 0,
           order.total,
           order.paymentMethod,
-          "paid",
           order.status,
-          JSON.stringify(order.items),
-          "seed_data",
-          order.createdAt,
+          order.notes || "",
           order.createdAt
         )
         .run();
-
-      for (const item of order.items) {
-        const itemId = `item-${order.id}-${item.productId}`;
-        await d1
-          .prepare(
-            `INSERT OR IGNORE INTO order_items (
-              id, order_id, product_id, name, quantity, price, unit, packaging_option, total_price, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-          )
-          .bind(
-            itemId,
-            order.id,
-            item.productId,
-            item.name,
-            item.quantity,
-            item.price,
-            item.unit,
-            item.packagingOption || "standard",
-            item.price * item.quantity,
-            order.createdAt
-          )
-          .run();
-      }
     }
   } catch (seedErr) {
     console.warn("Could not seed initial orders to D1:", seedErr);
@@ -300,7 +298,6 @@ export async function getOrdersFromDb(d1?: D1DatabaseLike): Promise<{
         const queryRes = await stmt.bind().all<any>();
         results = queryRes?.results;
       } catch (queryErr: any) {
-        // If "no such table" occurs, re-run schema initialization and retry once
         if (String(queryErr).includes("no such table")) {
           console.info("Orders table missing in D1. Auto-creating schema and retrying...");
           await initializeD1Schema(d1, true);
@@ -313,7 +310,6 @@ export async function getOrdersFromDb(d1?: D1DatabaseLike): Promise<{
       }
 
       if (Array.isArray(results)) {
-        // If table is completely empty on fresh instance, seed with sample orders
         if (results.length === 0 && INITIAL_ORDERS.length > 0) {
           await seedInitialOrdersToD1(d1);
           const afterSeed = await d1.prepare("SELECT * FROM orders ORDER BY created_at DESC").bind().all<any>();
@@ -392,85 +388,161 @@ export async function createOrderInDb(
   // Persist directly to Cloudflare D1 SQL relational tables
   if (d1) {
     const executeInsert = async () => {
-      // 1. Insert Order into orders table
-      await d1
-        .prepare(
-          `INSERT INTO orders (
-            id, order_number, customer_name, customer_phone, customer_emirate, customer_address,
-            notes, gift_note, subtotal, delivery_fee, discount, total, payment_method,
-            payment_status, status, items_json, source, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        )
-        .bind(
-          newOrder.id,
-          newOrder.orderNumber,
-          newOrder.customerName,
-          newOrder.customerPhone,
-          newOrder.customerEmirate,
-          newOrder.customerAddress,
-          newOrder.notes || "",
-          newOrder.giftNote || "",
-          newOrder.subtotal,
-          newOrder.deliveryFee,
-          newOrder.discount,
-          newOrder.total,
-          newOrder.paymentMethod,
-          "pending",
-          newOrder.status,
-          JSON.stringify(newOrder.items),
-          "web_store",
-          nowIso,
-          nowIso
-        )
-        .run();
+      const itemsJson = JSON.stringify(newOrder.items);
+      const customerId = `cust-${Date.now().toString(36)}`;
 
-      // 2. Insert Order Items into order_items relational table
-      for (const item of newOrder.items) {
-        const itemId = `item-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      // 1. Try unified insert with both tracking_number and order_number
+      try {
         await d1
           .prepare(
-            `INSERT INTO order_items (
-              id, order_id, product_id, name, quantity, price, unit, packaging_option, total_price, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            `INSERT INTO orders (
+              id, tracking_number, order_number, customer_id, customer_name,
+              phone, customer_phone, emirate, customer_emirate, address, customer_address,
+              items, items_json, notes, gift_note, subtotal, delivery_fee, discount, total,
+              payment_method, payment_status, status, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .bind(
-            itemId,
             newOrder.id,
-            item.productId,
-            item.name,
-            item.quantity,
-            item.price,
-            item.unit,
-            item.packagingOption || "standard",
-            item.price * item.quantity,
+            newOrder.orderNumber,
+            newOrder.orderNumber,
+            customerId,
+            newOrder.customerName,
+            newOrder.customerPhone,
+            newOrder.customerPhone,
+            newOrder.customerEmirate,
+            newOrder.customerEmirate,
+            newOrder.customerAddress,
+            newOrder.customerAddress,
+            itemsJson,
+            itemsJson,
+            newOrder.notes || "",
+            newOrder.giftNote || "",
+            newOrder.subtotal,
+            newOrder.deliveryFee,
+            newOrder.discount,
+            newOrder.total,
+            newOrder.paymentMethod,
+            "pending",
+            newOrder.status,
+            "web_store",
+            nowIso,
+            nowIso
+          )
+          .run();
+      } catch (unifiedErr: any) {
+        // If column difference (e.g. teenliwa-db standard schema), fall back to standard columns
+        await d1
+          .prepare(
+            `INSERT INTO orders (
+              id, tracking_number, customer_id, customer_name, phone, emirate, address,
+              items, subtotal, delivery_fee, total, payment_method, status, notes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            newOrder.id,
+            newOrder.orderNumber,
+            customerId,
+            newOrder.customerName,
+            newOrder.customerPhone,
+            newOrder.customerEmirate,
+            newOrder.customerAddress,
+            itemsJson,
+            newOrder.subtotal,
+            newOrder.deliveryFee,
+            newOrder.total,
+            newOrder.paymentMethod,
+            newOrder.status,
+            newOrder.giftNote ? `${newOrder.notes || ""}\nبطاقة إهداء: ${newOrder.giftNote}`.trim() : newOrder.notes || "",
             nowIso
           )
           .run();
       }
 
-      // 3. Upsert Customer profile in customers registry
-      await d1
-        .prepare(
-          `INSERT INTO customers (phone, name, emirate, last_address, total_orders, total_spent, last_order_at, created_at)
-           VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-           ON CONFLICT(phone) DO UPDATE SET
-             name = excluded.name,
-             emirate = excluded.emirate,
-             last_address = excluded.last_address,
-             total_orders = customers.total_orders + 1,
-             total_spent = customers.total_spent + excluded.total_spent,
-             last_order_at = excluded.last_order_at`
-        )
-        .bind(
-          newOrder.customerPhone,
-          newOrder.customerName,
-          newOrder.customerEmirate,
-          newOrder.customerAddress,
-          newOrder.total,
-          nowIso,
-          nowIso
-        )
-        .run();
+      // 2. Insert items into order_items if table exists
+      try {
+        for (const item of newOrder.items) {
+          const itemId = `item-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+          await d1
+            .prepare(
+              `INSERT INTO order_items (
+                id, order_id, product_id, name, quantity, price, unit, packaging_option, total_price, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              itemId,
+              newOrder.id,
+              item.productId,
+              item.name,
+              item.quantity,
+              item.price,
+              item.unit,
+              item.packagingOption || "standard",
+              item.price * item.quantity,
+              nowIso
+            )
+            .run();
+        }
+      } catch (itemErr) {
+        // Secondary relational table optional
+      }
+
+      // 3. Upsert customer registry
+      try {
+        await d1
+          .prepare(
+            `INSERT INTO customers (id, phone, name, fname, lname, emirate, address, last_address, total_orders, total_spent, last_order_at, last_order_tracking, created_at)
+             VALUES (?, ?, ?, ?, '', ?, ?, ?, 1, ?, ?, ?, ?)
+             ON CONFLICT(phone) DO UPDATE SET
+               name = excluded.name,
+               emirate = excluded.emirate,
+               last_address = excluded.last_address,
+               total_orders = customers.total_orders + 1,
+               total_spent = customers.total_spent + excluded.total_spent,
+               last_order_at = excluded.last_order_at,
+               last_order_tracking = excluded.last_order_tracking`
+          )
+          .bind(
+            customerId,
+            newOrder.customerPhone,
+            newOrder.customerName,
+            newOrder.customerName,
+            newOrder.customerEmirate,
+            newOrder.customerAddress,
+            newOrder.customerAddress,
+            newOrder.total,
+            nowIso,
+            newOrder.orderNumber,
+            nowIso
+          )
+          .run();
+      } catch (custErr) {
+        // Fallback for different customer columns
+        try {
+          await d1
+            .prepare(
+              `INSERT INTO customers (id, fname, lname, phone, address, emirate, total_orders, total_spent, last_order_tracking, created_at)
+               VALUES (?, ?, '', ?, ?, ?, 1, ?, ?, ?)
+               ON CONFLICT(phone) DO UPDATE SET
+                 address = excluded.address,
+                 emirate = excluded.emirate,
+                 total_orders = customers.total_orders + 1,
+                 total_spent = customers.total_spent + excluded.total_spent,
+                 last_order_tracking = excluded.last_order_tracking`
+            )
+            .bind(
+              customerId,
+              newOrder.customerName,
+              newOrder.customerPhone,
+              newOrder.customerAddress,
+              newOrder.customerEmirate,
+              newOrder.total,
+              newOrder.orderNumber,
+              nowIso
+            )
+            .run();
+        } catch {}
+      }
     };
 
     try {
@@ -521,15 +593,15 @@ export async function updateOrderStatusInDb(
     try {
       await initializeD1Schema(d1);
       await d1
-        .prepare("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?")
-        .bind(status, new Date().toISOString(), orderId)
+        .prepare("UPDATE orders SET status = ? WHERE id = ? OR tracking_number = ? OR order_number = ?")
+        .bind(status, orderId, orderId, orderId)
         .run();
     } catch (e: any) {
       if (String(e).includes("no such table")) {
         await initializeD1Schema(d1, true);
         await d1
-          .prepare("UPDATE orders SET status = ?, updated_at = ? WHERE id = ?")
-          .bind(status, new Date().toISOString(), orderId)
+          .prepare("UPDATE orders SET status = ? WHERE id = ? OR tracking_number = ? OR order_number = ?")
+          .bind(status, orderId, orderId, orderId)
           .run();
       } else {
         console.warn("D1 update order status error:", e);
@@ -552,13 +624,17 @@ export async function deleteOrderFromDb(orderId: string, d1?: D1DatabaseLike): P
   if (d1) {
     try {
       await initializeD1Schema(d1);
-      await d1.prepare("DELETE FROM order_items WHERE order_id = ?").bind(orderId).run();
-      await d1.prepare("DELETE FROM orders WHERE id = ?").bind(orderId).run();
+      try {
+        await d1.prepare("DELETE FROM order_items WHERE order_id = ?").bind(orderId).run();
+      } catch {}
+      await d1.prepare("DELETE FROM orders WHERE id = ? OR tracking_number = ? OR order_number = ?").bind(orderId, orderId, orderId).run();
     } catch (e: any) {
       if (String(e).includes("no such table")) {
         await initializeD1Schema(d1, true);
-        await d1.prepare("DELETE FROM order_items WHERE order_id = ?").bind(orderId).run();
-        await d1.prepare("DELETE FROM orders WHERE id = ?").bind(orderId).run();
+        try {
+          await d1.prepare("DELETE FROM order_items WHERE order_id = ?").bind(orderId).run();
+        } catch {}
+        await d1.prepare("DELETE FROM orders WHERE id = ? OR tracking_number = ? OR order_number = ?").bind(orderId, orderId, orderId).run();
       } else {
         console.warn("D1 delete order error:", e);
       }
