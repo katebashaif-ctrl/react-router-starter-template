@@ -3,13 +3,19 @@ import { useStore } from "../context/StoreContext";
 import { CheckCircle2, Printer, ArrowRight, MapPin, Phone, Calendar } from "lucide-react";
 
 export const OrderSuccessModal: React.FC = () => {
-	const { lastOrder, setLastOrder } = useStore();
+	const { lastOrder, setLastOrder, settings } = useStore();
 
 	if (!lastOrder) return null;
 
 	const handlePrint = () => {
 		window.print();
 	};
+
+	const waItemsSummary = lastOrder.items
+		.map((i) => `• ${i.quantity} × ${i.name} (${i.price * i.quantity} د.إ)`)
+		.join("%0A");
+	const waText = `*طلب جديد من خيرات الدار*%0Aرقم الطلب: ${lastOrder.orderNumber}%0Aالاسم: ${lastOrder.customerName}%0Aالهاتف: ${lastOrder.customerPhone}%0Aالإمارة: ${lastOrder.customerEmirate}%0Aالعنوان: ${lastOrder.customerAddress}%0A%0A*المنتجات:*%0A${waItemsSummary}%0A%0A*الإجمالي:* ${lastOrder.total} د.إ`;
+	const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-right">
@@ -30,6 +36,18 @@ export const OrderSuccessModal: React.FC = () => {
 						<span>تم التوثيق والتسجيل بقاعدة بيانات المتجر السحابية</span>
 					</div>
 				</div>
+
+				{/* WhatsApp CTA if paymentMethod is whatsapp */}
+				{lastOrder.paymentMethod === "whatsapp" && (
+					<a
+						href={whatsappUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="block p-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center font-bold text-xs shadow-md transition-colors"
+					>
+						📱 اضغط هنا لإرسال تفاصيل الفاتورة مباشرة عبر واتساب ←
+					</a>
+				)}
 
 				{/* Order Header Card */}
 				<div className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E8DCCB] space-y-2 text-xs">

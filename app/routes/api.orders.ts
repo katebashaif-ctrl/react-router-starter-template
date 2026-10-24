@@ -6,8 +6,25 @@ import {
   deleteOrderFromDb,
 } from "../db/ordersDb";
 import type { Order } from "../types/store";
+import { verifyAdminAuth } from "../utils/adminAuth";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
+  // Enforce admin-only access for listing all orders
+  const auth = verifyAdminAuth(request, context);
+  if (!auth.authorized) {
+    return Response.json(
+      {
+        success: false,
+        error: auth.reason || "غير مصرح لك بالوصول إلى سجل الطلبات. هذه الصفحة مخصصة للمشرفين فقط (Admin access only).",
+        code: "UNAUTHORIZED",
+      },
+      {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Bearer realm="Khayrat Admin Area"' },
+      }
+    );
+  }
+
   const d1 = (context as any)?.cloudflare?.env?.DB;
   const url = new URL(request.url);
   const statusFilter = url.searchParams.get("status");
@@ -62,6 +79,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
 
   const method = request.method.toUpperCase();
   const intent = body.intent || (method === "DELETE" ? "delete_order" : method === "PATCH" ? "update_status" : "create_order");
+
+  // Administrative mutations (updating status, deleting orders) require admin authorization
+  if (intent !== "create_order") {
+    const auth = verifyAdminAuth(request, context);
+    if (!auth.authorized) {
+      return Response.json(
+        {
+          success: false,
+          error: "غير مصرح لك بتنفيذ هذه العملية. يتطلب هذا الإجراء صلاحيات المشرف (Admin authorization required).",
+          code: "UNAUTHORIZED",
+        },
+        { status: 401 }
+      );
+    }
+  }
 
   // 1. Create new order in the database
   if (intent === "create_order" || method === "POST") {

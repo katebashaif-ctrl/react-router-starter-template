@@ -464,9 +464,8 @@ export const MetaCampaignsManager: React.FC = () => {
 
 											<button
 												onClick={() => {
-													if (confirm("هل أنت متأكد من حذف هذه الحملة الإعلانية؟")) {
-														deleteCampaign(camp.id);
-													}
+													deleteCampaign(camp.id);
+													showToast("تم حذف الحملة", `تم حذف حملة "${camp.name}" بنجاح`, "info");
 												}}
 												className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
 												title="حذف الحملة"

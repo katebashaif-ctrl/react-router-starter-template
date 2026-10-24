@@ -20,6 +20,11 @@ import {
 	INITIAL_META_CONFIG,
 	DEFAULT_MCP_CONFIG,
 } from "../data/initialData";
+import {
+	ADMIN_AUTH_TOKEN,
+	ADMIN_COOKIE_NAME,
+	getAdminRequestHeaders,
+} from "../utils/adminAuth";
 
 interface ToastNotification {
 	id: string;
@@ -207,7 +212,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const fetchOrdersFromDatabase = async (): Promise<boolean> => {
 		setIsOrdersLoading(true);
 		try {
-			const res = await fetch("/api/orders");
+			const res = await fetch("/api/orders", {
+				headers: getAdminRequestHeaders(),
+			});
+			if (res.status === 401 || res.status === 403) {
+				setIsOrdersLoading(false);
+				return false;
+			}
 			const json = (await res.json()) as any;
 			if (json.success && Array.isArray(json.orders)) {
 				setOrders(json.orders);
@@ -292,7 +303,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			if (savedCart) setCart(JSON.parse(savedCart));
 
 			const savedAuth = localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
-			if (savedAuth === "true") setIsAdminAuthenticated(true);
+			if (savedAuth === "true") {
+				setIsAdminAuthenticated(true);
+				if (typeof document !== "undefined") {
+					document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; SameSite=Lax`;
+				}
+				fetchOrdersFromDatabase();
+			}
 
 			const savedConsent = localStorage.getItem(STORAGE_KEYS.COOKIE_CONSENT);
 			if (savedConsent) setCookieConsentState(savedConsent as CookieConsentStatus);
@@ -316,9 +333,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			console.error("Error reading localStorage:", e);
 		}
 
-		// Sync live from Cloudflare R2 Bucket & Persistent Database
+		// Sync live from Cloudflare R2 Bucket
 		fetchCatalogFromR2();
-		fetchOrdersFromDatabase();
 	}, []);
 
 	// Sync to localStorage
@@ -415,12 +431,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const adminLogin = (username: string, pass: string): boolean => {
 		if (username.trim() === "admin" && pass.trim() === "admin") {
 			setIsAdminAuthenticated(true);
+			if (typeof document !== "undefined") {
+				document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; SameSite=Lax`;
+			}
 			if (isClient) {
 				localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, "true");
 			}
 			setIsAdminLoginModalOpen(false);
 			setCurrentView("cms");
 			showToast("مرحباً بك يا مشرف", "تم تسجيل الدخول إلى لوحة تحكم CMS بنجاح.");
+			setTimeout(() => {
+				fetchOrdersFromDatabase();
+			}, 100);
 			return true;
 		}
 		return false;
@@ -428,6 +450,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 	const adminLogout = () => {
 		setIsAdminAuthenticated(false);
+		if (typeof document !== "undefined") {
+			document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+		}
 		if (isClient) {
 			localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
 		}
@@ -663,7 +688,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		try {
 			await fetch("/api/orders", {
 				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
+				},
 				body: JSON.stringify({ intent: "update_status", orderId, status }),
 			});
 		} catch (err) {
@@ -678,7 +706,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		try {
 			await fetch("/api/orders", {
 				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
+				},
 				body: JSON.stringify({ intent: "delete_order", orderId }),
 			});
 		} catch (err) {

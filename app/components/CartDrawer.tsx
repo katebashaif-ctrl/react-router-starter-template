@@ -27,6 +27,7 @@ export const CartDrawer: React.FC = () => {
 		setIsCartOpen,
 		settings,
 		addOrder,
+		showToast,
 	} = useStore();
 
 	const [customerName, setCustomerName] = useState("");
@@ -138,13 +139,22 @@ export const CartDrawer: React.FC = () => {
 					window.location.href = ziinaData.redirect_url;
 					return;
 				} else {
-					alert(ziinaData.error || "تعذر بدء جلسة الدفع عبر Ziina، يرجى المحاولة مرة أخرى");
+					showToast(
+						"تنبيه بوابة الدفع",
+						ziinaData.error || "تعذر بدء جلسة الدفع عبر Ziina، يرجى المحاولة مرة أخرى",
+						"warning",
+					);
 					setZiinaRedirecting(false);
 					setIsSubmitting(false);
 					return;
 				}
 			} catch (ziinaErr) {
 				console.error("Ziina payment init error:", ziinaErr);
+				showToast(
+					"خطأ في الاتصال",
+					"تعذر الاتصال بخادم الدفع، يرجى المحاولة لاحقاً",
+					"warning",
+				);
 				setZiinaRedirecting(false);
 				setIsSubmitting(false);
 			}
@@ -153,16 +163,20 @@ export const CartDrawer: React.FC = () => {
 		setIsSubmitting(false);
 		setIsCartOpen(false);
 
-		// 2. If WhatsApp chosen, open direct WhatsApp conversation
+		// 2. If WhatsApp chosen, prepare whatsapp link
 		if (paymentMethod === "whatsapp") {
 			const itemsSummary = cart
 				.map((i) => `• ${i.quantity} × ${i.product.name} (${i.product.price * i.quantity} د.إ)`)
 				.join("%0A");
 			const waText = `*طلب جديد من خيرات الدار*%0Aرقم الطلب: ${newOrder.orderNumber}%0Aالاسم: ${customerName}%0Aالهاتف: ${customerPhone}%0Aالإمارة: ${customerEmirate}%0Aالعنوان: ${customerAddress}%0A%0A*المنتجات:*%0A${itemsSummary}%0A%0A*الإجمالي:* ${grandTotal} د.إ`;
-			window.open(
-				`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`,
-				"_blank",
-			);
+			try {
+				window.open(
+					`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`,
+					"_blank",
+				);
+			} catch {
+				// Fallback handled in OrderSuccessModal
+			}
 		}
 	};
 

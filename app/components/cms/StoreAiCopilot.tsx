@@ -190,16 +190,15 @@ export const StoreAiCopilot: React.FC = () => {
 	};
 
 	const clearChat = () => {
-		if (confirm("هل تريد مسح سجل المحادثة والبدء من جديد؟")) {
-			setMessages([
-				{
-					id: "welcome-reset",
-					role: "assistant",
-					text: "تمت إعادة ضبط جلسة المساعد الذكي. تفضل بأمرك التالي لإدارة المتجر أو الحملات الإعلانية!",
-					timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
-				},
-			]);
-		}
+		setMessages([
+			{
+				id: "welcome-reset",
+				role: "assistant",
+				text: "تمت إعادة ضبط جلسة المساعد الذكي. تفضل بأمرك التالي لإدارة المتجر أو الحملات الإعلانية!",
+				timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
+			},
+		]);
+		showToast("جلسة جديدة", "تمت إعادة ضبط محادثة المساعد الذكي بنجاح", "info");
 	};
 
 	const getToolArabicName = (toolName: string) => {

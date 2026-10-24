@@ -907,9 +907,8 @@ export const CMSDashboard: React.FC = () => {
 														</button>
 														<button
 															onClick={() => {
-																if (confirm(`هل أنت متأكد من حذف ${p.name}؟`)) {
-																	deleteProduct(p.id);
-																}
+																deleteProduct(p.id);
+																showToast("تم حذف المنتج", `تم حذف ${p.name} بنجاح من المتجر`, "info");
 															}}
 															className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
 															title="حذف المنتج"
@@ -1065,7 +1064,8 @@ export const CMSDashboard: React.FC = () => {
 														</button>
 														<button
 															onClick={() => {
-																if (confirm("حذف هذا الطلب؟")) deleteOrder(o.id);
+																deleteOrder(o.id);
+																showToast("تم حذف الطلب", `تم حذف الطلب ${o.orderNumber} بنجاح`, "info");
 															}}
 															className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
 															title="حذف الطلب"
@@ -1792,13 +1792,8 @@ export const CMSDashboard: React.FC = () => {
 								<button
 									type="button"
 									onClick={() => {
-										if (
-											confirm(
-												"هل ترغب في إعادة تعيين كافة المنتجات والطلبات للبيانات النموذجية الأصلية؟",
-											)
-										) {
-											resetToSampleData();
-										}
+										resetToSampleData();
+										showToast("استرجاع البيانات", "تم استرجاع كافة المنتجات والطلبات النموذجية بنجاح", "info");
 									}}
 									className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-rose-600 transition-colors"
 								>
