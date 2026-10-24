@@ -32,11 +32,11 @@ export type CookieConsentStatus = "accepted" | "rejected" | "custom" | null;
 
 export type CMSTabType =
 	| "overview"
+	| "ai_agent"
 	| "products"
 	| "orders"
-	| "inventory"
 	| "marketing"
-	| "leads"
+	| "ziina"
 	| "r2"
 	| "settings"
 	| "mcp"

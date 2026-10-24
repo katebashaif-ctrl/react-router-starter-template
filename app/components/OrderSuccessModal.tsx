@@ -56,11 +56,13 @@ export const OrderSuccessModal: React.FC = () => {
 					<div className="flex justify-between items-center">
 						<span className="text-stone-500">طريقة الدفع:</span>
 						<span className="font-semibold text-stone-800">
-							{lastOrder.paymentMethod === "cod"
-								? "نقداً عند الاستلام"
-								: lastOrder.paymentMethod === "card_on_delivery"
-									? "بطاقة ائتمانية عند التسليم"
-									: "تأكيد عبر واتساب"}
+							{lastOrder.paymentMethod === "ziina"
+								? "بوابة Ziina (Apple Pay · بطاقة بنكية)"
+								: lastOrder.paymentMethod === "cod"
+									? "نقداً عند الاستلام"
+									: lastOrder.paymentMethod === "card_on_delivery"
+										? "بطاقة ائتمانية عند التسليم"
+										: "تأكيد عبر واتساب"}
 						</span>
 					</div>
 				</div>

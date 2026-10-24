@@ -239,6 +239,12 @@ function mapD1RowToOrder(row: any): Order {
     discount: Number(row.discount) || 0,
     total: Number(row.total) || 0,
     paymentMethod: row.payment_method || "cod",
+    paymentStatus: row.payment_status || "pending",
+    ziinaPaymentIntentId: row.ziina_payment_intent_id || undefined,
+    ziinaRedirectUrl: row.ziina_redirect_url || undefined,
+    transactionId: row.transaction_id || undefined,
+    cardBrand: row.card_brand || undefined,
+    cardLastFour: row.card_last_four || undefined,
     status: row.status || "pending",
     createdAt: row.created_at || new Date().toISOString(),
     items,
@@ -375,6 +381,12 @@ export async function createOrderInDb(
     discount: orderInput.discount || 0,
     total: orderInput.total,
     paymentMethod: orderInput.paymentMethod,
+    paymentStatus: orderInput.paymentStatus || (orderInput.paymentMethod === "ziina" ? "pending" : "pending"),
+    ziinaPaymentIntentId: orderInput.ziinaPaymentIntentId,
+    ziinaRedirectUrl: orderInput.ziinaRedirectUrl,
+    transactionId: orderInput.transactionId,
+    cardBrand: orderInput.cardBrand,
+    cardLastFour: orderInput.cardLastFour,
     status,
     createdAt: nowIso,
   };
@@ -606,6 +618,70 @@ export async function updateOrderStatusInDb(
       } else {
         console.warn("D1 update order status error:", e);
       }
+    }
+  }
+
+  if (idx > -1) {
+    await syncOrderToR2(memoryOrdersCache[idx], memoryOrdersCache);
+  }
+  return true;
+}
+
+/**
+ * Update order payment status and transaction details in the database
+ */
+export async function updateOrderPaymentInDb(
+  orderId: string,
+  paymentStatus: "paid" | "failed" | "pending" | "cancelled",
+  details?: {
+    ziinaPaymentIntentId?: string;
+    transactionId?: string;
+    cardBrand?: string;
+    cardLastFour?: string;
+    orderStatus?: Order["status"];
+  },
+  d1?: D1DatabaseLike
+): Promise<boolean> {
+  const idx = memoryOrdersCache.findIndex(
+    (o) =>
+      o.id === orderId ||
+      o.orderNumber === orderId ||
+      (o.ziinaPaymentIntentId && o.ziinaPaymentIntentId === orderId)
+  );
+  if (idx > -1) {
+    memoryOrdersCache[idx].paymentStatus = paymentStatus;
+    if (details?.orderStatus) {
+      memoryOrdersCache[idx].status = details.orderStatus;
+    } else if (paymentStatus === "paid" && memoryOrdersCache[idx].status === "pending") {
+      memoryOrdersCache[idx].status = "processing";
+    }
+    if (details?.ziinaPaymentIntentId) {
+      memoryOrdersCache[idx].ziinaPaymentIntentId = details.ziinaPaymentIntentId;
+    }
+    if (details?.transactionId) {
+      memoryOrdersCache[idx].transactionId = details.transactionId;
+    }
+    if (details?.cardBrand) {
+      memoryOrdersCache[idx].cardBrand = details.cardBrand;
+    }
+    if (details?.cardLastFour) {
+      memoryOrdersCache[idx].cardLastFour = details.cardLastFour;
+    }
+  }
+
+  if (d1) {
+    try {
+      await initializeD1Schema(d1);
+      const newStatus =
+        details?.orderStatus || (paymentStatus === "paid" ? "processing" : "pending");
+      await d1
+        .prepare(
+          "UPDATE orders SET payment_status = ?, status = ?, updated_at = ? WHERE id = ? OR tracking_number = ? OR order_number = ?"
+        )
+        .bind(paymentStatus, newStatus, new Date().toISOString(), orderId, orderId, orderId)
+        .run();
+    } catch (e: any) {
+      console.warn("D1 update order payment status error:", e);
     }
   }
 

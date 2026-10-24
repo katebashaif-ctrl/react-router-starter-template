@@ -34,10 +34,12 @@ import {
 	Server,
 	Image as ImageIcon,
 	Upload,
+	CreditCard,
 } from "lucide-react";
 import { CmsRouteInstructionsBanner } from "./cms/CmsRouteInstructionsBanner";
-import { AILeadsManager } from "./cms/AILeadsManager";
+import { StoreAiCopilot } from "./cms/StoreAiCopilot";
 import { UnifiedMarketingMcpHub } from "./cms/UnifiedMarketingMcpHub";
+import { ZiinaGatewaySettings } from "./cms/ZiinaGatewaySettings";
 
 
 
@@ -454,35 +456,21 @@ export const CMSDashboard: React.FC = () => {
 						)}
 					</button>
 
+					{/* AI MCP Agent Tab */}
 					<button
-						onClick={() => setCmsTab("inventory")}
+						onClick={() => setCmsTab("ai_agent")}
 						className={`flex items-center gap-2 px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
-							cmsTab === "inventory"
+							cmsTab === "ai_agent"
 								? "border-amber-400 text-amber-300 bg-white/5"
 								: "border-transparent text-stone-300 hover:text-white"
 						}`}
 					>
-						<Boxes className="w-4 h-4" />
-						<span>تتبع المخزون</span>
-						{lowStockProducts.length > 0 && (
-							<span className="text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold">
-								{lowStockProducts.length}
-							</span>
-						)}
-					</button>
-
-					{/* AI Marketing Leads Tab */}
-					<button
-						onClick={() => setCmsTab("leads")}
-						className={`flex items-center gap-2 px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
-							cmsTab === "leads"
-								? "border-amber-400 text-amber-300 bg-white/5"
-								: "border-transparent text-stone-300 hover:text-white"
-						}`}
-					>
-						<Users className="w-4 h-4 text-emerald-400" />
-						<span>العملاء المحتملين (Leads) ({marketingLeads.length})</span>
-						<span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+						<Bot className="w-4 h-4 text-amber-400" />
+						<span>المساعد الذكي (AI Copilot)</span>
+						<span className="text-[10px] bg-gradient-to-r from-amber-400 to-amber-500 text-stone-950 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shadow-sm">
+							<Sparkles className="w-3 h-3 text-stone-950 inline" />
+							MCP Agent
+						</span>
 					</button>
 
 					{/* Unified Marketing & Meta MCP Tab */}
@@ -513,6 +501,22 @@ export const CMSDashboard: React.FC = () => {
 						<Cloud className="w-4 h-4 text-amber-400" />
 						<span>سحابة Cloudflare R2</span>
 						<span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+					</button>
+
+					{/* Ziina Payment Gateway Tab */}
+					<button
+						onClick={() => setCmsTab("ziina")}
+						className={`flex items-center gap-2 px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
+							cmsTab === "ziina"
+								? "border-amber-400 text-amber-300 bg-white/5"
+								: "border-transparent text-stone-300 hover:text-white"
+						}`}
+					>
+						<CreditCard className="w-4 h-4 text-amber-300" />
+						<span>بوابة دفع Ziina</span>
+						<span className="text-[10px] bg-emerald-500 text-stone-950 px-2 py-0.5 rounded-full font-bold">
+							Apple Pay
+						</span>
 					</button>
 
 					<button
@@ -601,11 +605,11 @@ export const CMSDashboard: React.FC = () => {
 							</div>
 							<div className="flex flex-wrap items-center gap-2">
 								<button
-									onClick={() => setCmsTab("leads")}
-									className="px-3 py-1.5 bg-emerald-800 text-emerald-100 text-xs font-bold rounded-lg hover:bg-emerald-900 transition-colors flex items-center gap-1.5"
+									onClick={() => setCmsTab("ai_agent")}
+									className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-xs font-bold rounded-lg hover:from-amber-700 hover:to-amber-800 transition-colors flex items-center gap-1.5 shadow-sm"
 								>
-									<Users className="w-3.5 h-3.5 text-emerald-300" />
-									<span>العملاء المحتملين (Leads) ({marketingLeads.length})</span>
+									<Bot className="w-3.5 h-3.5 text-amber-200" />
+									<span>المساعد الذكي (AI Copilot)</span>
 								</button>
 								<button
 									onClick={() => setCmsTab("mcp")}
@@ -1002,12 +1006,38 @@ export const CMSDashboard: React.FC = () => {
 												<td className="py-3 px-4 font-bold tabular-nums text-[#8B5A2B]">
 													{o.total} د.إ
 												</td>
-												<td className="py-3 px-4 text-stone-600">
-													{o.paymentMethod === "cod"
-														? "عند الاستلام"
-														: o.paymentMethod === "card_on_delivery"
-															? "بطاقة للتوصيل"
-															: "واتساب"}
+												<td className="py-3 px-4">
+													{o.paymentMethod === "ziina" ? (
+														<div className="space-y-1">
+															<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-[10px]">
+																<CreditCard className="w-3 h-3 text-amber-800" />
+																<span>Ziina (Apple Pay)</span>
+															</span>
+															<div>
+																<span
+																	className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+																		o.paymentStatus === "paid"
+																			? "bg-emerald-100 text-emerald-800"
+																			: "bg-amber-50 text-amber-800 border border-amber-200"
+																	}`}
+																>
+																	{o.paymentStatus === "paid" ? "مسدد ✓" : "قيد السداد"}
+																</span>
+															</div>
+														</div>
+													) : o.paymentMethod === "cod" ? (
+														<span className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 text-[11px]">
+															عند الاستلام
+														</span>
+													) : o.paymentMethod === "card_on_delivery" ? (
+														<span className="px-2 py-0.5 rounded bg-stone-100 text-stone-700 text-[11px]">
+															بطاقة للتوصيل
+														</span>
+													) : (
+														<span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[11px]">
+															واتساب
+														</span>
+													)}
 												</td>
 												<td className="py-3 px-4">
 													<select
@@ -1053,144 +1083,7 @@ export const CMSDashboard: React.FC = () => {
 					</div>
 				)}
 
-				{/* TAB 4: INVENTORY TRACKER */}
-				{cmsTab === "inventory" && (
-					<div className="space-y-6">
-						<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] space-y-2">
-							<h3 className="font-serif text-lg font-bold text-[#2C2014]">
-								متابعة المخزون والقطاف الموسمي
-							</h3>
-							<p className="text-xs text-stone-500">
-								متابعة الكميات المتوفرة من الرطب، التين البلدي، والفقع البري مع إمكانية التزويد السريع
-							</p>
-						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-							<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] space-y-4">
-								<div className="flex justify-between items-center pb-2 border-b border-stone-100">
-									<h4 className="font-serif font-bold text-stone-900 text-sm">
-										مخزون رطب الإمارات
-									</h4>
-									<span className="text-xs bg-amber-100 text-amber-900 px-2 py-0.5 rounded font-bold">
-										موسم القيظ
-									</span>
-								</div>
-								<div className="space-y-3">
-									{products
-										.filter((p) => p.category === "rutab")
-										.map((p) => (
-											<div
-												key={p.id}
-												className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-stone-50 border border-stone-200/60"
-											>
-												<span className="font-semibold text-stone-800 truncate max-w-[140px]">
-													{p.name}
-												</span>
-												<div className="flex items-center gap-2">
-													<span className="font-bold tabular-nums">{p.stockQuantity}</span>
-													<button
-														onClick={() =>
-															updateProduct(p.id, {
-																stockQuantity: p.stockQuantity + 20,
-																inStock: true,
-															})
-														}
-														className="px-2 py-1 bg-[#2C2014] text-amber-200 rounded text-[10px] font-bold hover:bg-black"
-													>
-														+٢٠ سحارة
-													</button>
-												</div>
-											</div>
-										))}
-								</div>
-							</div>
-
-							<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] space-y-4">
-								<div className="flex justify-between items-center pb-2 border-b border-stone-100">
-									<h4 className="font-serif font-bold text-stone-900 text-sm">
-										مخزون تين المزارع
-									</h4>
-									<span className="text-xs bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-bold">
-										مزارع الذيد وحتا
-									</span>
-								</div>
-								<div className="space-y-3">
-									{products
-										.filter((p) => p.category === "fig")
-										.map((p) => (
-											<div
-												key={p.id}
-												className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-stone-50 border border-stone-200/60"
-											>
-												<span className="font-semibold text-stone-800 truncate max-w-[140px]">
-													{p.name}
-												</span>
-												<div className="flex items-center gap-2">
-													<span className="font-bold tabular-nums">{p.stockQuantity}</span>
-													<button
-														onClick={() =>
-															updateProduct(p.id, {
-																stockQuantity: p.stockQuantity + 15,
-																inStock: true,
-															})
-														}
-														className="px-2 py-1 bg-[#2C2014] text-amber-200 rounded text-[10px] font-bold hover:bg-black"
-													>
-														+١٥ كجم
-													</button>
-												</div>
-											</div>
-										))}
-								</div>
-							</div>
-
-							<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] space-y-4">
-								<div className="flex justify-between items-center pb-2 border-b border-stone-100">
-									<h4 className="font-serif font-bold text-stone-900 text-sm">
-										مخزون فقع الصحراء
-									</h4>
-									<span className="text-xs bg-stone-100 text-stone-800 px-2 py-0.5 rounded font-bold">
-										نادر بري
-									</span>
-								</div>
-								<div className="space-y-3">
-									{products
-										.filter((p) => p.category === "faqa")
-										.map((p) => (
-											<div
-												key={p.id}
-												className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-stone-50 border border-stone-200/60"
-											>
-												<span className="font-semibold text-stone-800 truncate max-w-[140px]">
-													{p.name}
-												</span>
-												<div className="flex items-center gap-2">
-													<span
-														className={`font-bold tabular-nums ${
-															p.stockQuantity < 15 ? "text-rose-600" : ""
-														}`}
-													>
-														{p.stockQuantity}
-													</span>
-													<button
-														onClick={() =>
-															updateProduct(p.id, {
-																stockQuantity: p.stockQuantity + 10,
-																inStock: true,
-															})
-														}
-														className="px-2 py-1 bg-[#2C2014] text-amber-200 rounded text-[10px] font-bold hover:bg-black"
-													>
-														+١٠ صناديق
-													</button>
-												</div>
-											</div>
-										))}
-								</div>
-							</div>
-						</div>
-					</div>
-				)}
 
 				{/* TAB 5: CLOUDFLARE R2 INTEGRATION */}
 				{cmsTab === "r2" && (
@@ -1741,8 +1634,11 @@ export const CMSDashboard: React.FC = () => {
 					<UnifiedMarketingMcpHub />
 				)}
 
-				{/* TAB: AI MARKETING LEADS PIPELINE */}
-				{cmsTab === "leads" && <AILeadsManager />}
+				{/* TAB: AI MCP COPILOT */}
+				{cmsTab === "ai_agent" && <StoreAiCopilot />}
+
+				{/* TAB: ZIINA PAYMENT GATEWAY */}
+				{cmsTab === "ziina" && <ZiinaGatewaySettings />}
 
 				{/* TAB 6: STORE SETTINGS */}
 				{cmsTab === "settings" && (
@@ -2391,6 +2287,26 @@ export const CMSDashboard: React.FC = () => {
 						</div>
 					</div>
 				</div>
+			)}
+
+			{/* Floating AI Copilot Quick Access Button */}
+			{cmsTab !== "ai_agent" && (
+				<button
+					onClick={() => setCmsTab("ai_agent")}
+					className="fixed bottom-6 left-6 z-40 bg-gradient-to-r from-[#2C2014] to-[#453220] hover:from-black hover:to-[#2C2014] text-amber-300 px-4 py-3 rounded-2xl shadow-2xl border border-amber-500/40 flex items-center gap-2.5 transition-all transform hover:scale-105 group"
+					title="فتح المساعد الذكي لإدارة المتجر والحملات"
+				>
+					<div className="w-8 h-8 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-bold shadow-sm">
+						<Bot className="w-4 h-4" />
+					</div>
+					<div className="text-right">
+						<div className="text-xs font-bold text-amber-100 flex items-center gap-1.5">
+							<span>المساعد الذكي (MCP Copilot)</span>
+							<Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+						</div>
+						<div className="text-[10px] text-stone-300">تحكم بالمتجر وحملات Meta</div>
+					</div>
+				</button>
 			)}
 		</div>
 	);

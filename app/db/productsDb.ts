@@ -1,5 +1,6 @@
 import type { Product } from "../types/store";
 import { AwsClient } from "aws4fetch";
+import { INITIAL_PRODUCTS } from "../data/initialData";
 
 export interface D1DatabaseLike {
   prepare: (query: string) => {
@@ -12,8 +13,8 @@ export interface D1DatabaseLike {
   exec?: (query: string) => Promise<any>;
 }
 
-// In-memory products cache
-let memoryProductsCache: Product[] = [];
+// In-memory products cache initialized with authentic Emirati catalog
+let memoryProductsCache: Product[] = [...INITIAL_PRODUCTS];
 let isProductsLoaded = false;
 let isProductSchemaInitialized = false;
 
@@ -197,6 +198,38 @@ async function fetchProductsFromR2(): Promise<Product[] | null> {
 }
 
 /**
+ * Seed initial sample products into D1 if database table is completely empty
+ */
+async function seedInitialProductsToD1(d1: D1DatabaseLike): Promise<void> {
+  try {
+    for (const product of INITIAL_PRODUCTS) {
+      const jsonStr = JSON.stringify(product);
+      await d1
+        .prepare(
+          `INSERT OR IGNORE INTO products (
+            id, name, description, price, image_url, available, category_id,
+            sort_order, minimum_order_quantity, maximum_order_quantity, data_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)`
+        )
+        .bind(
+          product.id,
+          product.name,
+          product.description || "",
+          product.price,
+          product.image || "",
+          product.inStock ? 1 : 0,
+          product.category,
+          jsonStr,
+          new Date().toISOString()
+        )
+        .run();
+    }
+  } catch (seedErr) {
+    console.warn("Could not seed initial products to D1:", seedErr);
+  }
+}
+
+/**
  * Get all products from persistent database (Cloudflare D1 SQL)
  */
 export async function getProductsFromDb(d1?: D1DatabaseLike): Promise<{
@@ -207,13 +240,19 @@ export async function getProductsFromDb(d1?: D1DatabaseLike): Promise<{
     try {
       await initializeProductsSchema(d1);
       const stmt = d1.prepare("SELECT * FROM products ORDER BY sort_order ASC, created_at DESC");
-      const { results } = await stmt.bind().all<any>();
+      let { results } = await stmt.bind().all<any>();
 
       if (Array.isArray(results)) {
+        if (results.length === 0 && INITIAL_PRODUCTS.length > 0) {
+          await seedInitialProductsToD1(d1);
+          const afterSeed = await d1.prepare("SELECT * FROM products ORDER BY sort_order ASC, created_at DESC").bind().all<any>();
+          results = afterSeed?.results || [];
+        }
+
         const d1Products = results.map(mapD1RowToProduct);
-        memoryProductsCache = d1Products;
+        memoryProductsCache = d1Products.length > 0 ? d1Products : [...INITIAL_PRODUCTS];
         isProductsLoaded = true;
-        return { products: d1Products, storageType: "d1_database" };
+        return { products: memoryProductsCache, storageType: "d1_database" };
       }
     } catch (e: any) {
       console.warn("D1 products query error:", e);
@@ -222,10 +261,14 @@ export async function getProductsFromDb(d1?: D1DatabaseLike): Promise<{
 
   // Fallback to R2
   const r2Products = await fetchProductsFromR2();
-  if (r2Products) {
+  if (r2Products && r2Products.length > 0) {
     memoryProductsCache = r2Products;
     isProductsLoaded = true;
     return { products: r2Products, storageType: "r2_database" };
+  }
+
+  if (memoryProductsCache.length === 0) {
+    memoryProductsCache = [...INITIAL_PRODUCTS];
   }
 
   return {

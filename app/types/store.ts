@@ -50,7 +50,13 @@ export interface Order {
 	deliveryFee: number;
 	discount: number;
 	total: number;
-	paymentMethod: "cod" | "card_on_delivery" | "whatsapp";
+	paymentMethod: "cod" | "card_on_delivery" | "whatsapp" | "ziina";
+	paymentStatus?: "pending" | "paid" | "failed" | "cancelled";
+	ziinaPaymentIntentId?: string;
+	ziinaRedirectUrl?: string;
+	transactionId?: string;
+	cardBrand?: string;
+	cardLastFour?: string;
 	status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
 	createdAt: string;
 }
@@ -68,6 +74,10 @@ export interface StoreSettings {
 	metaPixelId: string;
 	facebookCatalogFeedEnabled: boolean;
 	currency: string;
+	ziinaEnabled?: boolean;
+	ziinaTestMode?: boolean;
+	ziinaApiKey?: string;
+	ziinaWebhookSecret?: string;
 }
 
 // Meta Marketing API & Campaign Types

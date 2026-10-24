@@ -1,6 +1,20 @@
 import React, { useState } from "react";
 import { useStore } from "../context/StoreContext";
-import { X, Trash2, Plus, Minus, ShoppingBag, Truck, Gift, CheckCircle, MessageSquare } from "lucide-react";
+import {
+	X,
+	Trash2,
+	Plus,
+	Minus,
+	ShoppingBag,
+	Truck,
+	Gift,
+	CheckCircle,
+	MessageSquare,
+	CreditCard,
+	Smartphone,
+	ShieldCheck,
+	Zap,
+} from "lucide-react";
 
 export const CartDrawer: React.FC = () => {
 	const {
@@ -22,8 +36,9 @@ export const CartDrawer: React.FC = () => {
 	const [deliveryNotes, setDeliveryNotes] = useState("");
 	const [hasGiftNote, setHasGiftNote] = useState(false);
 	const [giftNoteText, setGiftNoteText] = useState("");
-	const [paymentMethod, setPaymentMethod] = useState<"cod" | "card_on_delivery" | "whatsapp">("cod");
+	const [paymentMethod, setPaymentMethod] = useState<"ziina" | "cod" | "card_on_delivery" | "whatsapp">("ziina");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [ziinaRedirecting, setZiinaRedirecting] = useState(false);
 	const [errors, setErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
 
 	if (!isCartOpen) return null;
@@ -95,12 +110,50 @@ export const CartDrawer: React.FC = () => {
 			discount: 0,
 			total: grandTotal,
 			paymentMethod,
+			paymentStatus: paymentMethod === "ziina" ? "pending" : "pending",
 		});
+
+		// 1. If Ziina Payment Gateway selected: initiate Ziina Payment Intent and redirect
+		if (paymentMethod === "ziina") {
+			setZiinaRedirecting(true);
+			try {
+				const ziinaRes = await fetch("/api/ziina/create-intent", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						orderId: newOrder.id,
+						orderNumber: newOrder.orderNumber,
+						amount: grandTotal,
+						currency: "AED",
+						customerName,
+						customerPhone,
+						apiToken: settings.ziinaApiKey,
+						testMode: settings.ziinaTestMode ?? true,
+					}),
+				});
+
+				const ziinaData = (await ziinaRes.json()) as any;
+				if (ziinaData.success && ziinaData.redirect_url) {
+					// Navigate to Ziina Hosted Checkout
+					window.location.href = ziinaData.redirect_url;
+					return;
+				} else {
+					alert(ziinaData.error || "تعذر بدء جلسة الدفع عبر Ziina، يرجى المحاولة مرة أخرى");
+					setZiinaRedirecting(false);
+					setIsSubmitting(false);
+					return;
+				}
+			} catch (ziinaErr) {
+				console.error("Ziina payment init error:", ziinaErr);
+				setZiinaRedirecting(false);
+				setIsSubmitting(false);
+			}
+		}
 
 		setIsSubmitting(false);
 		setIsCartOpen(false);
 
-		// If WhatsApp chosen, open direct WhatsApp conversation
+		// 2. If WhatsApp chosen, open direct WhatsApp conversation
 		if (paymentMethod === "whatsapp") {
 			const itemsSummary = cart
 				.map((i) => `• ${i.quantity} × ${i.product.name} (${i.product.price * i.quantity} د.إ)`)
@@ -359,10 +412,63 @@ export const CartDrawer: React.FC = () => {
 									</div>
 
 									{/* Payment Method Selector */}
-									<div>
-										<label className="block text-[11px] font-medium text-stone-600 mb-1">
-											طريقة الدفع والتأكيد:
-										</label>
+									<div className="space-y-2">
+										<div className="flex items-center justify-between">
+											<label className="block text-[11px] font-bold text-stone-700">
+												طريقة الدفع والتأكيد:
+											</label>
+											<span className="text-[10px] text-amber-800 font-medium flex items-center gap-1">
+												<ShieldCheck className="w-3 h-3 text-emerald-600" />
+												<span>دفع إلكتروني آمن معتمد</span>
+											</span>
+										</div>
+
+										{/* Primary Ziina Payment Option */}
+										<button
+											type="button"
+											onClick={() => setPaymentMethod("ziina")}
+											className={`w-full p-3 rounded-xl border text-right transition-all flex items-center justify-between gap-3 ${
+												paymentMethod === "ziina"
+													? "border-amber-800 bg-[#F5EFE6] shadow-sm ring-1 ring-amber-800"
+													: "border-stone-200 bg-white hover:bg-stone-50"
+											}`}
+										>
+											<div className="flex items-center gap-2.5">
+												<div
+													className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+														paymentMethod === "ziina"
+															? "bg-[#2C2014] text-amber-300"
+															: "bg-stone-100 text-stone-600"
+													}`}
+												>
+													<CreditCard className="w-4 h-4" />
+												</div>
+												<div>
+													<div className="flex items-center gap-1.5 font-bold text-xs text-[#2C2014]">
+														<span>بوابة Ziina (Apple Pay · بطاقة بنكية)</span>
+														<span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-800 font-semibold">
+															فوري وآمن
+														</span>
+													</div>
+													<p className="text-[10px] text-stone-500 mt-0.5">
+														فيزا، ماستركارد، Apple Pay، Google Pay بالدرهم الإماراتي
+													</p>
+												</div>
+											</div>
+											<div
+												className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+													paymentMethod === "ziina"
+														? "border-amber-800 bg-amber-800"
+														: "border-stone-300"
+												}`}
+											>
+												{paymentMethod === "ziina" && (
+													<div className="w-1.5 h-1.5 rounded-full bg-white" />
+												)}
+											</div>
+										</button>
+
+										{/* Secondary Payment Methods Grid */}
 										<div className="grid grid-cols-3 gap-1.5 text-center">
 											<button
 												type="button"
@@ -399,6 +505,15 @@ export const CartDrawer: React.FC = () => {
 												<span>عبر واتساب</span>
 											</button>
 										</div>
+
+										{paymentMethod === "ziina" && (
+											<div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[10px] text-amber-950 flex items-center gap-2">
+												<ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+												<span>
+													سيتم نقلك فوراً إلى شاشة دفع Ziina الرسمية لإتمام السداد الآمن عبر Apple Pay أو البطاقة الائتمانية.
+												</span>
+											</div>
+										)}
 									</div>
 								</form>
 							</>
@@ -436,11 +551,22 @@ export const CartDrawer: React.FC = () => {
 							<button
 								type="submit"
 								form="checkout-form"
-								disabled={isSubmitting}
-								className="w-full py-3.5 px-4 bg-[#2C2014] text-amber-200 text-sm font-bold rounded-xl hover:bg-black transition-colors shadow flex items-center justify-center gap-2"
+								disabled={isSubmitting || ziinaRedirecting}
+								className={`w-full py-3.5 px-4 text-sm font-bold rounded-xl transition-colors shadow flex items-center justify-center gap-2 ${
+									paymentMethod === "ziina"
+										? "bg-amber-900 hover:bg-amber-950 text-amber-100"
+										: "bg-[#2C2014] hover:bg-black text-amber-200"
+								}`}
 							>
-								{isSubmitting ? (
+								{ziinaRedirecting ? (
+									<span>جاري تحويلكم إلى بوابة دفع Ziina...</span>
+								) : isSubmitting ? (
 									<span>جاري تسجيل الطلب في قاعدة البيانات...</span>
+								) : paymentMethod === "ziina" ? (
+									<>
+										<Zap className="w-4 h-4 text-amber-400" />
+										<span>الدفع الآمن عبر Ziina (Apple Pay · بطاقة) ({grandTotal} د.إ)</span>
+									</>
 								) : paymentMethod === "whatsapp" ? (
 									<>
 										<MessageSquare className="w-4 h-4 text-emerald-400" />
@@ -455,7 +581,9 @@ export const CartDrawer: React.FC = () => {
 							</button>
 
 							<p className="text-[10px] text-stone-400 text-center">
-								سيصلك اتصال من فريق التوصيل لتأكيد وقت الوصول
+								{paymentMethod === "ziina"
+									? "دفع إلكتروني فوري ومحمي بتشفير البنوك عبر Ziina Payment Gateway"
+									: "سيصلك اتصال من فريق التوصيل لتأكيد وقت الوصول"}
 							</p>
 						</div>
 					)}
