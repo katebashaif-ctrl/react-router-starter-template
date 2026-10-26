@@ -161,16 +161,16 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 const STORAGE_KEYS = {
-	PRODUCTS: "khayrat_aldar_products_v1",
-	ORDERS: "khayrat_aldar_orders_v1",
-	SETTINGS: "khayrat_aldar_settings_v1",
-	CART: "khayrat_aldar_cart_v1",
-	ADMIN_AUTH: "khayrat_aldar_admin_auth_v1",
-	COOKIE_CONSENT: "khayrat_aldar_cookie_consent_v1",
-	META_CAMPAIGNS: "khayrat_aldar_meta_campaigns_v1",
-	LEADS: "khayrat_aldar_leads_v1",
-	META_CONFIG: "khayrat_aldar_meta_config_v1",
-	MCP_CONFIG: "khayrat_aldar_mcp_config_v2",
+	PRODUCTS: "teen_liwa_products_v2",
+	ORDERS: "teen_liwa_orders_v2",
+	SETTINGS: "teen_liwa_settings_v2",
+	CART: "teen_liwa_cart_v2",
+	ADMIN_AUTH: "teen_liwa_admin_auth_v2",
+	COOKIE_CONSENT: "teen_liwa_cookie_consent_v2",
+	META_CAMPAIGNS: "teen_liwa_meta_campaigns_v2",
+	LEADS: "teen_liwa_leads_v2",
+	META_CONFIG: "teen_liwa_meta_config_v2",
+	MCP_CONFIG: "teen_liwa_mcp_config_v2",
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -271,7 +271,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 						products: prodsToSync || products,
 						settings: setsToSync || settings,
 						lastUpdated: new Date().toISOString(),
-						storeName: "خيرات الدار | تين ليوا",
+						storeName: "تين ليوا",
 					},
 				}),
 			});
@@ -811,7 +811,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	// Settings & Reset
 	const updateSettings = (newSettings: Partial<StoreSettings>) => {
 		setSettings((prev) => ({ ...prev, ...newSettings }));
-		showToast("تم حفظ الإعدادات", "تم تحديث إعدادات متجر خيرات الدار.");
+		showToast("تم حفظ الإعدادات", "تم تحديث إعدادات متجر تين ليوا.");
 	};
 
 	const resetToSampleData = () => {

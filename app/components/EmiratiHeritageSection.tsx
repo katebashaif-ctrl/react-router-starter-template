@@ -39,19 +39,17 @@ export const EmiratiHeritageSection: React.FC = () => {
 						</p>
 					</div>
 
-					{/* Story 2: Fresh Figs */}
+					{/* Story 2: Fresh Liwa Figs */}
 					<div className="bg-white p-6 rounded-2xl border border-[#D6BE9F]/60 shadow-sm space-y-3">
 						<span className="text-2xl">🍃</span>
 						<h3 className="font-serif text-lg font-bold text-[#2C2014]">
-							تين مزارع الذيد والوديان
+							مزارع تين ليوا والقص الطازج
 						</h3>
 						<p className="text-xs text-stone-600 leading-relaxed">
-							تحتضن مزارع الذيد الخضراء وأودية حتا سلالات التين الأسود والعسلي
-							التي تتغذى على المياه العذبة وتربة الوديان الخصبة، وتُقطف فجراً
-							لتحافظ على رحيقها السكري وقوامها اللذيذ.
+							تشتهر مزارع تين ليوا بإنتاج أطيب سلالات التين الأحمر والأصفر الطازج، حيث يُقطف يومياً مع بزوغ الفجر بنظام القص والتوصيل في نفس اليوم ليبقى عسلياً وطرياً بأعلى معايير الجودة الإماراتية.
 						</p>
-						<p className="text-[11px] font-semibold text-[#8B5A2B]">
-							مزارع الذيد وحتا · زراعة مستدامة
+						<p className="text-[11px] font-semibold text-[#DE2A2D]">
+							مزارع تين ليوا · القص والتوصيل في نفس اليوم
 						</p>
 					</div>
 

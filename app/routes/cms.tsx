@@ -8,11 +8,11 @@ import { Link } from "react-router";
 
 export function meta({}: Route.MetaArgs) {
 	return [
-		{ title: "لوحة تحكم خيرات الدار | CMS الإماراتي" },
+		{ title: "لوحة تحكم تين ليوا | CMS teenliwa" },
 		{
 			name: "description",
 			content:
-				"لوحة تحكم CMS الشاملة لمتجر خيرات الدار لإدارة المحاصيل، الطلبات، المخزون، وحملات إعلانات Meta والعملاء المحتملين Leads.",
+				"لوحة تحكم CMS الشاملة لمتجر تين ليوا (teenliwa) لإدارة المحاصيل، الطلبات، المخزون، وحملات إعلانات Meta.",
 		},
 	];
 }
@@ -49,11 +49,8 @@ const CMSPageContent: React.FC = () => {
 				<header className="bg-[#2C2014] text-white border-b border-[#574127] py-4 px-6">
 					<div className="max-w-6xl mx-auto flex items-center justify-between">
 						<div className="flex items-center gap-3">
-							<span className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center font-bold text-sm">
-								خ
-							</span>
 							<span className="font-serif text-lg font-bold text-amber-100">
-								خيرات الدار · لوحة تحكم المشرف (CMS)
+								تين ليوا (teenliwa) · لوحة تحكم المشرف (CMS)
 							</span>
 						</div>
 						<Link
@@ -173,7 +170,7 @@ const CMSPageContent: React.FC = () => {
 
 				{/* Footer */}
 				<footer className="text-center py-4 text-xs text-stone-500 border-t border-[#E8DCCB] bg-white">
-					خيرات الدار © {new Date().getFullYear()} · متجر الرطب والتين والفقع الإماراتي
+					مزارع تين ليوا © {new Date().getFullYear()} · متجر تين ليوا الإماراتي
 				</footer>
 				<ToastContainer />
 			</div>

@@ -1,24 +1,39 @@
-export type ProductCategory = "rutab" | "fig" | "faqa" | "boxes";
+export type ProductCategory =
+	| "rutab"
+	| "fig"
+	| "faqa"
+	| "boxes"
+	| "dates"
+	| "nuts"
+	| "truffle"
+	| "fruits";
 
 export interface Product {
 	id: string;
 	name: string;
-	nameEn: string;
+	nameEn?: string;
 	category: ProductCategory;
 	price: number;
 	originalPrice?: number;
-	unit: string;
-	origin: string;
-	harvestDate: string;
-	season: string;
+	unit?: string;
+	origin?: string;
+	harvestDate?: string;
+	season?: string;
 	image: string;
 	description: string;
-	tastingNotes: string[];
-	storageInstructions: string;
+	desc?: string;
+	tag?: string;
+	disabled?: number;
+	disabledTxt?: string;
+	minQty?: number;
+	maxQty?: number;
+	created_at?: string;
+	tastingNotes?: string[];
+	storageInstructions?: string;
 	inStock: boolean;
-	stockQuantity: number;
+	stockQuantity?: number;
 	badge?: string;
-	featured: boolean;
+	featured?: boolean;
 }
 
 export interface CartItem {

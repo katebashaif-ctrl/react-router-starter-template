@@ -168,7 +168,7 @@ export const CartDrawer: React.FC = () => {
 			const itemsSummary = cart
 				.map((i) => `• ${i.quantity} × ${i.product.name} (${i.product.price * i.quantity} د.إ)`)
 				.join("%0A");
-			const waText = `*طلب جديد من خيرات الدار*%0Aرقم الطلب: ${newOrder.orderNumber}%0Aالاسم: ${customerName}%0Aالهاتف: ${customerPhone}%0Aالإمارة: ${customerEmirate}%0Aالعنوان: ${customerAddress}%0A%0A*المنتجات:*%0A${itemsSummary}%0A%0A*الإجمالي:* ${grandTotal} د.إ`;
+			const waText = `*طلب جديد من مزارع تين ليوا*%0Aرقم الطلب: ${newOrder.orderNumber}%0Aالاسم: ${customerName}%0Aالهاتف: ${customerPhone}%0Aالإمارة: ${customerEmirate}%0Aالعنوان: ${customerAddress}%0A%0A*المنتجات:*%0A${itemsSummary}%0A%0A*الإجمالي:* ${grandTotal} د.إ`;
 			try {
 				window.open(
 					`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`,

@@ -7,23 +7,55 @@ export const CategoryFilter: React.FC = () => {
 	const { activeCategory, setActiveCategory, searchQuery, setSearchQuery, products } = useStore();
 
 	const categories: { id: ProductCategory | "all"; label: string; count: number }[] = [
-		{ id: "all", label: "جميع الخيرات", count: products.length },
-		{ id: "rutab", label: "رطب الإمارات", count: products.filter((p) => p.category === "rutab").length },
-		{ id: "fig", label: "تين المزارع", count: products.filter((p) => p.category === "fig").length },
-		{ id: "faqa", label: "فقع الصحراء", count: products.filter((p) => p.category === "faqa").length },
-		{ id: "boxes", label: "صناديق الإهداء", count: products.filter((p) => p.category === "boxes").length },
+		{ id: "all", label: "كافة المنتجات", count: products.length },
+		{
+			id: "fig",
+			label: "تين ليوا الطازج",
+			count: products.filter((p) => p.category === "fig" || p.name.includes("تين")).length,
+		},
+		{
+			id: "dates",
+			label: "التمور الفاخرة",
+			count: products.filter(
+				(p) =>
+					p.category === "dates" ||
+					p.category === "rutab" ||
+					p.tag === "dates" ||
+					p.name.includes("تمر"),
+			).length,
+		},
+		{
+			id: "faqa",
+			label: "فقع الصحراء",
+			count: products.filter(
+				(p) => p.category === "faqa" || p.category === "truffle" || p.tag === "truffle" || p.name.includes("فقع"),
+			).length,
+		},
+		{
+			id: "nuts",
+			label: "اللوز والمكسرات",
+			count: products.filter((p) => p.category === "nuts" || p.tag === "nuts" || p.name.includes("لوز")).length,
+		},
+		{
+			id: "fruits",
+			label: "فواكه الموسم",
+			count: products.filter((p) => p.category === "fruits" || p.name.includes("توت") || p.name.includes("صبار") || p.name.includes("كنار")).length,
+		},
 	];
 
 	return (
-		<div className="space-y-4 mb-8">
+		<div className="space-y-4 mb-8" id="catalog-section">
 			{/* Top bar with heading, search input, and counts */}
 			<div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
 				<div>
-					<h2 className="font-serif text-2xl font-bold text-[#2C2014]">
-						محصول ومنتجات الدار
+					<h2 className="font-serif text-2xl font-black text-[#2C2014] flex items-center gap-2">
+						<span>محاصيل ومنتجات مزارع تين ليوا</span>
+						<span className="text-xs px-2 py-0.5 rounded-md bg-[#DE2A2D]/10 text-[#DE2A2D] font-bold">
+							قطاف اليوم
+						</span>
 					</h2>
 					<p className="text-xs text-stone-500 mt-1">
-						اختر الصنف المطلوب واستمتع بقطاف الموسم المضمون
+						القص والتوصيل في نفس اليوم — جميع المحاصيل طبيعية ومختارة بعناية
 					</p>
 				</div>
 

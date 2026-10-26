@@ -1,7 +1,6 @@
 import React from "react";
 import type { Route } from "./+types/home";
 import { StoreProvider, useStore } from "../context/StoreContext";
-import { AnnouncementBar } from "../components/AnnouncementBar";
 import { Header } from "../components/Header";
 import { Hero } from "../components/Hero";
 import { CategoryFilter } from "../components/CategoryFilter";
@@ -20,11 +19,11 @@ import { Lock, ArrowRight } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
 	return [
-		{ title: "خيرات الدار | متجر التين والرطب والفقع الإماراتي" },
+		{ title: "تين ليوا | متجر مزارع تين ليوا للمنتجات الزراعية الفاخرة" },
 		{
 			name: "description",
 			content:
-				"متجر إلكتروني بطابع وتراث إماراتي فاخر لأجود أنواع الرطب، التين البلدي، والفقع الصحراوي مع لوحة تحكم CMS متكاملة مع إعلانات Meta.",
+				"متجر تين ليوا الرسمي - أجود أنواع التين الأحمر والأصفر الطازج، الرطب والتمور الفاخرة، الفقع، اللوز، التوت، والصبار من مزارع ليوا مع القص والتوصيل في نفس اليوم.",
 		},
 	];
 }
@@ -43,13 +42,46 @@ const StorefrontContent: React.FC = () => {
 	} = useStore();
 
 	const filteredProducts = products.filter((p) => {
-		const matchesCategory =
-			activeCategory === "all" || p.category === activeCategory;
+		let matchesCategory = activeCategory === "all";
+		if (!matchesCategory) {
+			if (activeCategory === "fig") {
+				matchesCategory = p.category === "fig" || p.name.includes("تين");
+			} else if (activeCategory === "dates" || activeCategory === "rutab") {
+				matchesCategory =
+					p.category === "dates" ||
+					p.category === "rutab" ||
+					p.tag === "dates" ||
+					p.name.includes("تمر") ||
+					p.name.includes("رطب");
+			} else if (activeCategory === "faqa" || activeCategory === "truffle") {
+				matchesCategory =
+					p.category === "faqa" ||
+					p.category === "truffle" ||
+					p.tag === "truffle" ||
+					p.name.includes("فقع");
+			} else if (activeCategory === "nuts") {
+				matchesCategory =
+					p.category === "nuts" ||
+					p.tag === "nuts" ||
+					p.name.includes("لوز");
+			} else if (activeCategory === "fruits") {
+				matchesCategory =
+					p.category === "fruits" ||
+					p.name.includes("توت") ||
+					p.name.includes("صبار") ||
+					p.name.includes("كنار");
+			} else {
+				matchesCategory = p.category === activeCategory;
+			}
+		}
+
 		const matchesSearch =
 			!searchQuery ||
 			p.name.includes(searchQuery) ||
-			p.origin.includes(searchQuery) ||
-			p.description.includes(searchQuery);
+			(p.origin && p.origin.includes(searchQuery)) ||
+			(p.desc && p.desc.includes(searchQuery)) ||
+			(p.description && p.description.includes(searchQuery));
+
 		return matchesCategory && matchesSearch;
 	});
 
@@ -58,7 +90,6 @@ const StorefrontContent: React.FC = () => {
 		if (!isAdminAuthenticated) {
 			return (
 				<div className="flex flex-col min-h-screen text-right bg-[#FAF7F2]">
-					<AnnouncementBar />
 					<Header />
 					<main className="flex-1 flex items-center justify-center p-6">
 						<div className="text-center space-y-4 max-w-md w-full bg-white p-8 rounded-2xl border border-[#D6BE9F] shadow-xl">
@@ -104,7 +135,6 @@ const StorefrontContent: React.FC = () => {
 
 	return (
 		<div className="flex flex-col min-h-screen">
-			<AnnouncementBar />
 			<Header />
 
 			<main className="flex-1">

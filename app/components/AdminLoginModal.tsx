@@ -54,7 +54,7 @@ export const AdminLoginModal: React.FC = () => {
 						دخول المشرف الإداري
 					</h3>
 					<p className="text-xs text-stone-500">
-						لوحة تحكم CMS محمية ومخصصة لإدارة مبيعات ومحاصيل خيرات الدار
+						لوحة تحكم CMS محمية ومخصصة لإدارة مبيعات ومحاصيل تين ليوا
 					</p>
 				</div>
 

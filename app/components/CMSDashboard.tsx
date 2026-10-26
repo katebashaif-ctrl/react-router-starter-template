@@ -162,20 +162,21 @@ export const CMSDashboard: React.FC = () => {
 	const pendingOrdersCount = orders.filter((o) => o.status === "pending" || o.status === "processing").length;
 	const lowStockProducts = products.filter((p) => p.stockQuantity < 15);
 
-	// Curated & R2 Image list for picker
+	// Curated & Real Teen Liwa Product Images list for picker
 	const imageOptions = [
-		{ label: "رطب إماراتي فاخر", url: "/images/product_emirati_rutab_1792506810615.jpg" },
-		{ label: "تين المزارع الطازج", url: "/images/product_fresh_figs_1792506832142.jpg" },
-		{ label: "فقع صحراوي بري", url: "/images/product_desert_truffles_1792506845219.jpg" },
-		{ label: "صندوق ضيافة الدار الملكي", url: "/images/hero_emirati_gourmet_1792506796316.jpg" },
-		// R2 downloaded images
-		{ label: "R2 · تين ليوا أحمر فاخر", url: "/images/r2/1787242643585-1000043352.jpg" },
-		{ label: "R2 · تين أصفر عسلي", url: "/images/r2/1787243665670-1000043354.jpg" },
-		{ label: "R2 · تمر مجدول مزارع ليوا", url: "/images/r2/1787243771874-1000043353.jpg" },
-		{ label: "R2 · فقع كمأة بري", url: "/images/r2/1787244036797-1000043355.jpg" },
-		{ label: "R2 · لوز إماراتي مقرمش", url: "/images/r2/1787244192851-1000043357.jpg" },
-		{ label: "R2 · تين شوكي صبار", url: "/images/r2/1787244304784-1000043358.jpg" },
-		{ label: "R2 · سحاحير ومخاريف الرطب", url: "/images/r2/1787246347117-1000043391.jpg" },
+		{ label: "تين أحمر طازج (مزارع ليوا)", url: "/images/redfig.jpg" },
+		{ label: "تين أصفر طازج (مزارع ليوا)", url: "/images/yellowfig.jpg" },
+		{ label: "تمر جلاكسي سكري", url: "/images/tmr_sokry.webp" },
+		{ label: "فقع علبة 400 جرام", url: "/images/fq3.jpg" },
+		{ label: "تمر صقعي (3 كيلو)", url: "/images/tmr_saq3y.webp" },
+		{ label: "تمر خلاص (3 كيلو)", url: "/images/tmr_ikhlas.webp" },
+		{ label: "تمر شيشي (3 كيلو)", url: "/images/tmr_shishi.webp" },
+		{ label: "تمر صفوي (3 كيلو)", url: "/images/tmr_safaye.webp" },
+		{ label: "لوز محلي", url: "/images/lowzlocal.jpg" },
+		{ label: "لوز الجامبو", url: "/images/lowz.jpg" },
+		{ label: "توت طويل فاخر", url: "/images/tot.webp" },
+		{ label: "صبار طازج كيلو", url: "/images/sabars.webp" },
+		{ label: "كنار كيلو ونص", url: "/images/kanar.webp" },
 	];
 
 	// Handle R2 Credentials Save & Live Test

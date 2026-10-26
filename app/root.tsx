@@ -19,7 +19,7 @@ export const links: Route.LinksFunction = () => [
 	},
 	{
 		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700&display=swap",
+		href: "https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap",
 	},
 ];
 
@@ -29,16 +29,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-				<title>خيرات الدار | المتجر الإماراتي للرطب والتين والفقع</title>
+				<title>تين ليوا (teenliwa) | متجر التين والرطب والفقع الإماراتي</title>
 				<meta
 					name="description"
-					content="متجر إلكتروني بطابع وتراث إماراتي فاخر لعرض وبيع أجود أنواع الرطب والتين والفقع، مع بوابة دفع Ziina (Apple Pay وبطاقات مدى والائتمان)، ومساعد ذكي AI Copilot عبر MCP لإدارة العمليات والحملات الإعلانية."
+					content="متجر تين ليوا (teenliwa) الإلكتروني لمحاصيل التين الأحمر والأصفر الطازج، الرطب الفاخر، وفقع الصحراء الإماراتي مع توصيل مبرد وبوابة دفع إلكترونية."
 				/>
-				<meta property="og:title" content="خيرات الدار | المتجر الإماراتي للرطب والتين والفقع" />
+				<meta property="og:title" content="تين ليوا (teenliwa) | متجر التين والرطب والفقع الإماراتي" />
 				<meta
 					property="og:description"
-					content="متجر إلكتروني بطابع وتراث إماراتي فاخر لعرض وبيع أجود أنواع الرطب والتين والفقع، مع بوابة دفع Ziina (Apple Pay وبطاقات مدى والائتمان)، ومساعد ذكي AI Copilot عبر MCP لإدارة العمليات والحملات الإعلانية."
+					content="متجر تين ليوا (teenliwa) الإلكتروني لمحاصيل التين الأحمر والأصفر الطازج، الرطب الفاخر، وفقع الصحراء الإماراتي مع توصيل مبرد وبوابة دفع إلكترونية."
 				/>
+				<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 				<Meta />
 				<Links />
 			</head>

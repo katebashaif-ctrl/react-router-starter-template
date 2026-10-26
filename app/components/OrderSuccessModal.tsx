@@ -14,7 +14,7 @@ export const OrderSuccessModal: React.FC = () => {
 	const waItemsSummary = lastOrder.items
 		.map((i) => `• ${i.quantity} × ${i.name} (${i.price * i.quantity} د.إ)`)
 		.join("%0A");
-	const waText = `*طلب جديد من خيرات الدار*%0Aرقم الطلب: ${lastOrder.orderNumber}%0Aالاسم: ${lastOrder.customerName}%0Aالهاتف: ${lastOrder.customerPhone}%0Aالإمارة: ${lastOrder.customerEmirate}%0Aالعنوان: ${lastOrder.customerAddress}%0A%0A*المنتجات:*%0A${waItemsSummary}%0A%0A*الإجمالي:* ${lastOrder.total} د.إ`;
+	const waText = `*طلب جديد من مزارع تين ليوا*%0Aرقم الطلب: ${lastOrder.orderNumber}%0Aالاسم: ${lastOrder.customerName}%0Aالهاتف: ${lastOrder.customerPhone}%0Aالإمارة: ${lastOrder.customerEmirate}%0Aالعنوان: ${lastOrder.customerAddress}%0A%0A*المنتجات:*%0A${waItemsSummary}%0A%0A*الإجمالي:* ${lastOrder.total} د.إ`;
 	const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`;
 
 	return (
@@ -29,7 +29,7 @@ export const OrderSuccessModal: React.FC = () => {
 						تم استلام طلبكم المبارك بنجاح
 					</h3>
 					<p className="text-xs text-stone-500">
-						حياكم الله ونشكركم على ثقتكم في خيرات الدار. سيصلكم اتصال للتأكيد.
+						حياكم الله ونشكركم على ثقتكم في مزارع تين ليوا. سيصلكم اتصال للتأكيد والتوصيل في نفس اليوم.
 					</p>
 					<div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
 						<CheckCircle2 className="w-3 h-3 text-emerald-600" />
