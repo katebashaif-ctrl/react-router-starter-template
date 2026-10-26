@@ -389,7 +389,7 @@ export const CMSDashboard: React.FC = () => {
 						</span>
 						<div>
 							<h1 className="font-serif text-lg font-bold text-amber-100">
-								لوحة تحكم خيرات الدار
+								لوحة تحكم تين ليوا
 							</h1>
 							<p className="text-[11px] text-stone-400">
 								إدارة المحاصيل والطلبات والمخزون وسحابة Cloudflare R2
