@@ -63,7 +63,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 				const ziinaRes = await fetch(`${ZIINA_API_BASE}/payment_intent`, {
 					method: "POST",
 					headers: {
-						Authorization: `Bearer ${token}`,
+						Authorization: `Bearer ${env.ZIINA_WEBHOOK_SECRET}`,
 						"Content-Type": "application/json",
 						Accept: "application/json",
 					},
