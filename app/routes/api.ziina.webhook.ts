@@ -6,7 +6,7 @@ import type { ZiinaWebhookPayload } from "../types/ziina";
 export async function loader({ request }: LoaderFunctionArgs) {
 	return Response.json({
 		status: "active",
-		service: "Khayrat Al Dar Ziina Payment Webhook Handler",
+		service: "teenliwa cafu Ziina Payment Webhook Handler",
 		endpoint: "/api/ziina/webhook",
 		eventSupported: "payment_intent.status.updated",
 		configuredWebhookSecret: Boolean(process.env.ZIINA_WEBHOOK_SECRET),
