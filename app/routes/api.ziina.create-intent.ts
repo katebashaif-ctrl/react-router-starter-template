@@ -46,7 +46,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 		const payload: ZiinaCreateIntentPayload = {
 			amount: amountInFils,
 			currency_code: currency,
-			message: `طلب من متجر خيرات الدار #${orderNumber || orderId}`,
+			message: `#${orderNumber || orderId}`,
 			success_url: successUrl,
 			cancel_url: cancelUrl,
 			failure_url: failureUrl,
