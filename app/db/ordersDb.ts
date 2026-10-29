@@ -201,10 +201,10 @@ function mapD1RowToOrder(row: any): Order {
     if (Array.isArray(parsed)) {
       items = parsed.map((item: any) => ({
         productId: item.productId || item.id || `p-${Math.random().toString(36).substring(2, 6)}`,
-        name: item.name || "منتج",
+        name: item.name || "Item",
         quantity: Number(item.quantity ?? item.qty) || 1,
         price: Number(item.price) || 0,
-        unit: item.unit || "صندوق",
+        unit: item.unit || "Box",
         packagingOption: item.packagingOption,
       }));
     }
@@ -228,9 +228,9 @@ function mapD1RowToOrder(row: any): Order {
   return {
     id: row.id,
     orderNumber: orderNum,
-    customerName: row.customer_name || (row.fname ? `${row.fname} ${row.lname || ""}`.trim() : "عميل كريم"),
+    customerName: row.customer_name || (row.fname ? `${row.fname} ${row.lname || ""}`.trim() : "Customer"),
     customerPhone: row.phone || row.customer_phone || "",
-    customerEmirate: row.emirate || row.customer_emirate || "أبوظبي",
+    customerEmirate: row.emirate || row.customer_emirate || "Abu Dhabi",
     customerAddress: row.address || row.customer_address || "",
     notes: notesStr || undefined,
     giftNote: giftNoteStr || undefined,
@@ -465,7 +465,7 @@ export async function createOrderInDb(
             newOrder.total,
             newOrder.paymentMethod,
             newOrder.status,
-            newOrder.giftNote ? `${newOrder.notes || ""}\nبطاقة إهداء: ${newOrder.giftNote}`.trim() : newOrder.notes || "",
+            newOrder.giftNote ? `${newOrder.notes || ""}\nGift Note: ${newOrder.giftNote}`.trim() : newOrder.notes || "",
             nowIso
           )
           .run();

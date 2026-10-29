@@ -1,3 +1,4 @@
+import { cmsT, cmsFormat } from "../../frontend/locales/cmsI18n";
 import React, { useState } from "react";
 import { useStore } from "../../context/StoreContext";
 import { McpConfigSettings } from "./McpConfigSettings";
@@ -53,7 +54,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 	const copyToClipboard = (text: string, label: string) => {
 		navigator.clipboard.writeText(text);
 		setCopiedText(label);
-		showToast("تم النسخ", `تم نسخ ${label} إلى الحافظة.`);
+		showToast(cmsT("cms_108"), cmsFormat("cms_467", [label]));
 		setTimeout(() => setCopiedText(null), 2500);
 	};
 
@@ -67,7 +68,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 			try {
 				parsedArgs = JSON.parse(customToolArgs);
 			} catch (err) {
-				showToast("خطأ في المعاملات", "يجب أن تكون المعاملات بتنسيق JSON صحيح.", "warning");
+				showToast(cmsT("cms_468"), cmsT("cms_469"), "warning");
 				setIsExecutingTool(false);
 				return;
 			}
@@ -93,17 +94,17 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 			});
 
 			if (data.success) {
-				showToast("نجاح الطلب", `تم استلام الرد من خادم MCP بنجاح (${data.latencyMs || 0}ms).`);
+				showToast(cmsT("cms_470"), cmsFormat("cms_471", [data.latencyMs || 0]));
 			} else {
-				showToast("تنبيه استجابة الخادم", data.error || `رمز الحالة: ${data.statusCode}`, "warning");
+				showToast(cmsT("cms_472"), data.error || cmsFormat("cms_473", [data.statusCode]), "warning");
 			}
 		} catch (error) {
 			setToolExecutionResult({
 				timestamp: new Date().toLocaleTimeString("ar-AE"),
 				success: false,
-				error: error instanceof Error ? error.message : "تعذر إرسال الطلب إلى الخادم",
+				error: error instanceof Error ? error.message : cmsT("cms_474"),
 			});
-			showToast("خطأ في الاتصال", "تعذر الوصول إلى نقطة نهاية MCP.", "warning");
+			showToast(cmsT("cms_475"), cmsT("cms_476"), "warning");
 		} finally {
 			setIsExecutingTool(false);
 		}
@@ -118,22 +119,24 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					<div className="space-y-2">
 						<div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 text-amber-300 rounded-full text-xs font-bold border border-amber-500/30">
 							<Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-							<span>خادم مخصص متصل ومفعل</span>
+							<span>{cmsT("cms_477")}</span>
 							<span className="text-stone-400">|</span>
 							<span className="font-mono" dir="ltr">{activeServer.url}</span>
 						</div>
 						<h2 className="font-serif text-2xl sm:text-3xl font-bold text-amber-100">
-							مركز التسويق وخادم Meta Ads MCP الموحد
+							
+							{cmsT("cms_478")}
 						</h2>
 						<p className="text-stone-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-							تم إلغاء Graph API القديم ودمج كامل أدوات التسويق، الحملات، كتالوج المنتجات، وإعدادات خادم MCP المخصص في قائمة واحدة متكاملة تتصل مباشرة بـ{" "}
+							
+							{cmsT("cms_479")}{" "}
 							<span className="font-mono text-amber-300" dir="ltr">mcp.teenliwa.com</span>.
 						</p>
 					</div>
 
 					<div className="bg-black/30 backdrop-blur-md p-4 rounded-2xl border border-white/10 space-y-2 min-w-[280px]">
 						<div className="text-[11px] text-stone-400 font-semibold flex items-center justify-between">
-							<span>حالة الخادم الفعّال</span>
+							<span>{cmsT("cms_480")}</span>
 							<span className="text-emerald-400 font-mono text-[10px] bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
 								HTTP Bearer
 							</span>
@@ -159,7 +162,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					}`}
 				>
 					<Code2 className="w-4 h-4 text-amber-400" />
-					<span>إعدادات خادم MCP (JSON & Visual)</span>
+					<span>{cmsT("cms_481")}</span>
 				</button>
 
 				<button
@@ -171,7 +174,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					}`}
 				>
 					<Megaphone className="w-4 h-4 text-amber-400" />
-					<span>إدارة الحملات الإعلانية ({metaCampaigns.length})</span>
+					<span>{cmsT("cms_482")}{metaCampaigns.length})</span>
 				</button>
 
 				<button
@@ -183,7 +186,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					}`}
 				>
 					<Share2 className="w-4 h-4 text-blue-400" />
-					<span>كتالوج المنتجات وتتبع التحويلات</span>
+					<span>{cmsT("cms_483")}</span>
 				</button>
 
 				<button
@@ -195,7 +198,7 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					}`}
 				>
 					<Terminal className="w-4 h-4 text-emerald-500" />
-					<span>منصة تشغيل أوامر MCP الحية</span>
+					<span>{cmsT("cms_484")}</span>
 				</button>
 			</div>
 
@@ -221,10 +224,11 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 							<div>
 								<h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
 									<Share2 className="w-5 h-5 text-blue-600" />
-									<span>خلاصة كتالوج Meta ومزامنة المنتجات (Data Feed)</span>
+									<span>{cmsT("cms_485")}</span>
 								</h3>
 								<p className="text-xs text-stone-600 mt-1">
-									رابط الخلاصة المباشر المتوافق مع Meta Commerce Manager لتحديث أسعار وصور رطب ليوا وفقع الزبيدي تلقائياً.
+									
+									{cmsT("cms_486")}
 								</p>
 							</div>
 							<div className="flex items-center gap-2">
@@ -234,19 +238,19 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 									rel="noreferrer"
 									className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
 								>
-									<span>فتح الرابط الحي</span>
+									<span>{cmsT("cms_487")}</span>
 									<ExternalLink className="w-3.5 h-3.5" />
 								</a>
 								<button
-									onClick={() => copyToClipboard(`${window.location.origin}/api/catalog/meta`, "رابط خلاصة الكتالوج")}
+									onClick={() => copyToClipboard(`${window.location.origin}/api/catalog/meta`, cmsT("cms_488"))}
 									className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
 								>
-									{copiedText === "رابط خلاصة الكتالوج" ? (
+									{copiedText === cmsT("cms_488") ? (
 										<Check className="w-3.5 h-3.5 text-emerald-600" />
 									) : (
 										<Copy className="w-3.5 h-3.5" />
 									)}
-									<span>نسخ الرابط</span>
+									<span>{cmsT("cms_149")}</span>
 								</button>
 							</div>
 						</div>
@@ -254,25 +258,26 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 						{/* Feed Specs */}
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 							<div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
-								<div className="text-xs text-stone-500 font-semibold">عدد المنتجات في الكتالوج</div>
+								<div className="text-xs text-stone-500 font-semibold">{cmsT("cms_489")}</div>
 								<div className="text-2xl font-bold font-serif text-stone-900 mt-1">
-									{products.length} منتج
+									{products.length}  {cmsT("cms_490")}
 								</div>
-								<div className="text-[11px] text-emerald-600 mt-0.5">جاهزة للمزامنة اللحظية</div>
+								<div className="text-[11px] text-emerald-600 mt-0.5">{cmsT("cms_491")}</div>
 							</div>
 							<div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
-								<div className="text-xs text-stone-500 font-semibold">تنسيق الخلاصة</div>
+								<div className="text-xs text-stone-500 font-semibold">{cmsT("cms_492")}</div>
 								<div className="text-2xl font-bold font-mono text-stone-900 mt-1">
 									XML / RSS 2.0
 								</div>
 								<div className="text-[11px] text-stone-500 mt-0.5">Google &amp; Meta Product Catalog</div>
 							</div>
 							<div className="p-4 bg-stone-50 rounded-xl border border-stone-200">
-								<div className="text-xs text-stone-500 font-semibold">العملة والمنطقة</div>
+								<div className="text-xs text-stone-500 font-semibold">{cmsT("cms_493")}</div>
 								<div className="text-2xl font-bold font-serif text-amber-900 mt-1">
-									AED · الإمارات
+									
+									{cmsT("cms_494")}
 								</div>
-								<div className="text-[11px] text-stone-500 mt-0.5">درهم إماراتي مع ضريبة القيمة المضافة</div>
+								<div className="text-[11px] text-stone-500 mt-0.5">{cmsT("cms_495")}</div>
 							</div>
 						</div>
 
@@ -280,21 +285,23 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 						<div className="border border-stone-200 rounded-xl overflow-hidden">
 							<div className="bg-[#FAF7F2] px-4 py-3 border-b border-stone-200 flex items-center justify-between">
 								<span className="font-semibold text-xs text-stone-800">
-									المنتجات المضمنة في الخلاصة ({products.length})
+									
+									{cmsT("cms_496")}{products.length})
 								</span>
 								<span className="text-[11px] text-stone-500">
-									آخر تحديث: لحظي عند التعديل
+									
+									{cmsT("cms_497")}
 								</span>
 							</div>
 							<div className="overflow-x-auto max-h-80">
 								<table className="w-full text-right text-xs">
 									<thead className="bg-stone-50 border-b border-stone-200 text-stone-600 sticky top-0">
 										<tr>
-											<th className="py-2.5 px-3 font-semibold">المعرف (ID)</th>
-											<th className="py-2.5 px-3 font-semibold">اسم المحصول</th>
-											<th className="py-2.5 px-3 font-semibold">الحالة</th>
-											<th className="py-2.5 px-3 font-semibold">السعر</th>
-											<th className="py-2.5 px-3 font-semibold">المصدر</th>
+											<th className="py-2.5 px-3 font-semibold">{cmsT("cms_498")}</th>
+											<th className="py-2.5 px-3 font-semibold">{cmsT("cms_499")}</th>
+											<th className="py-2.5 px-3 font-semibold">{cmsT("cms_46")}</th>
+											<th className="py-2.5 px-3 font-semibold">{cmsT("cms_500")}</th>
+											<th className="py-2.5 px-3 font-semibold">{cmsT("cms_501")}</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-stone-100">
@@ -310,11 +317,11 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 																: "bg-rose-100 text-rose-800"
 														}`}
 													>
-														{p.inStock ? "متوفر" : "نفد المخزون"}
+														{p.inStock ? cmsT("cms_502") : cmsT("cms_503")}
 													</span>
 												</td>
 												<td className="py-2.5 px-3 font-bold text-amber-900 tabular-nums">
-													{p.price} د.إ
+													{p.price}  {cmsT("cms_55")}
 												</td>
 												<td className="py-2.5 px-3 text-stone-600">{p.origin}</td>
 											</tr>
@@ -333,10 +340,11 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					<div>
 						<h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
 							<Terminal className="w-5 h-5 text-emerald-600" />
-							<span>منصة اختبار واستدعاء خادم MCP الحي</span>
+							<span>{cmsT("cms_504")}</span>
 						</h3>
 						<p className="text-xs text-stone-600 mt-1">
-							استدعاء مباشر لأوامر Model Context Protocol ضد نقطة نهاية خادمك المخصص{" "}
+							
+							{cmsT("cms_505")}{" "}
 							<span className="font-mono text-stone-800" dir="ltr">{activeServer.url}</span>.
 						</p>
 					</div>
@@ -345,23 +353,25 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div>
 							<label className="block text-xs font-semibold text-stone-800 mb-1">
-								اختر الأمر أو الطريقة (RPC Method)
+								
+								{cmsT("cms_506")}
 							</label>
 							<select
 								value={selectedTool}
 								onChange={(e) => setSelectedTool(e.target.value)}
 								className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-xl text-xs font-mono text-stone-800 focus:outline-none focus:border-amber-800"
 							>
-								<option value="tools/list">tools/list (استعراض كافة الأدوات المتاحة)</option>
-								<option value="initialize">initialize (تهيئة الجلسة والبروتوكول)</option>
-								<option value="prompts/list">prompts/list (استعراض القوالب التوجيهية)</option>
-								<option value="resources/list">resources/list (استعراض الموارد)</option>
+								<option value="tools/list">{cmsT("cms_507")}</option>
+								<option value="initialize">{cmsT("cms_508")}</option>
+								<option value="prompts/list">{cmsT("cms_509")}</option>
+								<option value="resources/list">{cmsT("cms_510")}</option>
 							</select>
 						</div>
 
 						<div>
 							<label className="block text-xs font-semibold text-stone-800 mb-1">
-								معاملات الطلب (Parameters JSON)
+								
+								{cmsT("cms_511")}
 							</label>
 							<input
 								type="text"
@@ -383,12 +393,12 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 							{isExecutingTool ? (
 								<>
 									<RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-									<span>جاري إرسال الطلب للخادم...</span>
+									<span>{cmsT("cms_512")}</span>
 								</>
 							) : (
 								<>
 									<Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-									<span>تنفيذ الأمر الآن</span>
+									<span>{cmsT("cms_513")}</span>
 								</>
 							)}
 						</button>
@@ -405,7 +415,8 @@ export const UnifiedMarketingMcpHub: React.FC = () => {
 								<div className="flex items-center gap-2">
 									<span className={`w-2.5 h-2.5 rounded-full ${toolExecutionResult.success ? "bg-emerald-400" : "bg-rose-400"}`} />
 									<span className="text-stone-300 font-bold">
-										استجابة خادم MCP · الحالة: {toolExecutionResult.statusCode || (toolExecutionResult.success ? 200 : "خطأ")}
+										
+										{cmsT("cms_514")} {toolExecutionResult.statusCode || (toolExecutionResult.success ? 200 : cmsT("cms_14"))}
 									</span>
 								</div>
 								<div className="text-stone-400 text-[10px]">

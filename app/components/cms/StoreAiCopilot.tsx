@@ -1,3 +1,4 @@
+import { cmsT, cmsFormat } from "../../frontend/locales/cmsI18n";
 import React, { useState, useRef, useEffect } from "react";
 import {
 	Bot,
@@ -39,33 +40,33 @@ interface ChatMessage {
 
 const QUICK_PROMPTS = [
 	{
-		label: "🚀 إطلاق حملة Meta Ads جديدة",
-		prompt: "أنشئ لي حملة إعلانية جديدة على Meta لرطب خلاص ليوا بميزانية يومية 150 درهم تستهدف أبوظبي ودبي.",
+		label: cmsT("cms_224"),
+		prompt: cmsT("cms_225"),
 		category: "ads",
 	},
 	{
-		label: "📊 استعراض الحملات والميزانيات",
-		prompt: "اعرض لي جميع حملات Meta الإعلانية الحالية وميزانياتها ونسب المشاهدات والنقر.",
+		label: cmsT("cms_226"),
+		prompt: cmsT("cms_227"),
 		category: "ads",
 	},
 	{
-		label: "🏷️ استعراض أسعار المحاصيل",
-		prompt: "اعرض لي قائمة أسعار الرطب والتين والفقع المتوفرة في المتجر حالياً.",
+		label: cmsT("cms_228"),
+		prompt: cmsT("cms_229"),
 		category: "store",
 	},
 	{
-		label: "📦 فحص أحدث الطلبات والمبيعات",
-		prompt: "أعطني ملخصاً لأحدث طلبات العملاء وحالة السداد عبر بوابة Ziina.",
+		label: cmsT("cms_230"),
+		prompt: cmsT("cms_231"),
 		category: "orders",
 	},
 	{
-		label: "💳 فحص بوابة الدفع Ziina",
-		prompt: "افحص جاهزية بوابة دفع Ziina وتحصيلات البطاقات البنكية و Apple Pay.",
+		label: cmsT("cms_232"),
+		prompt: cmsT("cms_233"),
 		category: "payment",
 	},
 	{
-		label: "📢 تحديث إعلان شريط المتجر",
-		prompt: "قم بتحديث شريط الإعلانات العلوي للمتجر إلى: 'موسم قطاف رطب ليوا وعين الفاخر نخب أول - شحن مبرد لجميع الإمارات'",
+		label: cmsT("cms_234"),
+		prompt: cmsT("cms_235"),
 		category: "settings",
 	},
 ];
@@ -85,7 +86,7 @@ export const StoreAiCopilot: React.FC = () => {
 		{
 			id: "welcome",
 			role: "assistant",
-			text: `يا مرحباً بك في غرفة تحكم "خيرات الدار" الذكية عبر بروتوكول MCP! 🌴\n\nأنا مساعدك الذكي المتصل مباشرة بأنظمة المتجر، قاعدة بيانات المحاصيل، حملات Meta Ads الإعلانية، وبوابة دفع Ziina.\n\nيمكنك أن تطلب مني باللغة العربية الطبيعية:\n• التحكم في حملات Meta الإعلانية (إطلاق حملة، زيادة الميزانية، إيقاف أو تشغيل).\n• تعديل أسعار المحاصيل وتحديث توفر المخزون.\n• مراجعة طلبات الضيافة وتعديل حالات الشحن والتسليم.\n• تحديث إعدادات ونصوص المتجر والشريط العلوي.`,
+			text: cmsT("cms_236"),
 			timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
 		},
 	]);
@@ -160,7 +161,7 @@ export const StoreAiCopilot: React.FC = () => {
 					if (hasOrderAction && fetchOrdersFromDatabase) {
 						fetchOrdersFromDatabase();
 					}
-					showToast("تم تنفيذ العملية بنجاح", "استجاب المساعد ونفذ أوامر MCP المباشرة", "success");
+					showToast(cmsT("cms_237"), cmsT("cms_238"), "success");
 				}
 			} else {
 				setMessages((prev) => [
@@ -168,7 +169,7 @@ export const StoreAiCopilot: React.FC = () => {
 					{
 						id: `bot-${Date.now()}`,
 						role: "assistant",
-						text: data.error || "عذراً، حدث خطأ أثناء الاتصال بخادم MCP. يرجى المحاولة مرة أخرى.",
+						text: data.error || cmsT("cms_239"),
 						timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
 					},
 				]);
@@ -180,7 +181,7 @@ export const StoreAiCopilot: React.FC = () => {
 				{
 					id: `bot-${Date.now()}`,
 					role: "assistant",
-					text: "تعذر الاتصال بـ API المساعد الذكي. تأكد من عمل خادم التطبيق.",
+					text: cmsT("cms_240"),
 					timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
 				},
 			]);
@@ -194,37 +195,37 @@ export const StoreAiCopilot: React.FC = () => {
 			{
 				id: "welcome-reset",
 				role: "assistant",
-				text: "تمت إعادة ضبط جلسة المساعد الذكي. تفضل بأمرك التالي لإدارة المتجر أو الحملات الإعلانية!",
+				text: cmsT("cms_241"),
 				timestamp: new Date().toLocaleTimeString("ar-AE", { hour: "2-digit", minute: "2-digit" }),
 			},
 		]);
-		showToast("جلسة جديدة", "تمت إعادة ضبط محادثة المساعد الذكي بنجاح", "info");
+		showToast(cmsT("cms_242"), cmsT("cms_243"), "info");
 	};
 
 	const getToolArabicName = (toolName: string) => {
 		switch (toolName) {
 			case "list_products":
-				return "استعراض منتجات المتجر";
+				return cmsT("cms_244");
 			case "update_product_price":
-				return "تعديل سعر المحصول";
+				return cmsT("cms_245");
 			case "toggle_product_stock":
-				return "تحديث حالة التوفر";
+				return cmsT("cms_246");
 			case "list_orders":
-				return "استعراض طلبات العملاء";
+				return cmsT("cms_247");
 			case "update_order_status":
-				return "تحديث حالة الطلب";
+				return cmsT("cms_248");
 			case "list_ad_campaigns":
-				return "استعراض حملات Meta الإعلانية";
+				return cmsT("cms_249");
 			case "create_ad_campaign":
-				return "إطلاق حملة إعلانية جديدة في Meta";
+				return cmsT("cms_250");
 			case "toggle_campaign_status":
-				return "تشغيل / إيقاف الحملة";
+				return cmsT("cms_251");
 			case "update_campaign_budget":
-				return "تعديل ميزانية الإعلان";
+				return cmsT("cms_252");
 			case "update_store_settings":
-				return "تحديث إعدادات وشريط المتجر";
+				return cmsT("cms_253");
 			case "get_store_metrics":
-				return "تحليل مبيعات وبوابة Ziina";
+				return cmsT("cms_254");
 			default:
 				return toolName;
 		}
@@ -239,14 +240,15 @@ export const StoreAiCopilot: React.FC = () => {
 					<div className="space-y-2">
 						<div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-400/20 text-amber-300 rounded-full text-xs font-bold border border-amber-400/30">
 							<Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-							<span>Model Context Protocol (MCP) متصل ومفعل</span>
+							<span>{cmsT("cms_255")}</span>
 						</div>
 						<h2 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-amber-100 flex items-center gap-3">
 							<Bot className="w-8 h-8 text-amber-400" />
-							<span>المساعد الذكي لإدارة المتجر والحملات (AI MCP Copilot)</span>
+							<span>{cmsT("cms_256")}</span>
 						</h2>
 						<p className="text-stone-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-							تحكم كامل بالمتجر عبر الذكاء الاصطناعي: قم بإنشاء وتعديل حملات Meta الإعلانية، تحديث أسعار الرطب والتين والفقع، متابعة طلبات الضيافة، وتفقد بوابة دفع Ziina بمحادثة واحدة طبيعية.
+							
+							{cmsT("cms_257")}
 						</p>
 					</div>
 
@@ -256,22 +258,22 @@ export const StoreAiCopilot: React.FC = () => {
 							className="inline-flex items-center gap-2 px-3.5 py-2 bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white rounded-xl text-xs font-bold border border-white/10 transition-colors"
 						>
 							<Megaphone className="w-4 h-4 text-amber-400" />
-							<span>لوحة الحملات</span>
+							<span>{cmsT("cms_258")}</span>
 						</button>
 						<button
 							onClick={() => setCmsTab("ziina")}
 							className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-xl text-xs font-bold border border-emerald-500/30 transition-colors"
 						>
 							<CreditCard className="w-4 h-4 text-emerald-400" />
-							<span>بوابة Ziina</span>
+							<span>{cmsT("cms_259")}</span>
 						</button>
 						<button
 							onClick={clearChat}
 							className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-stone-800/80 hover:bg-rose-900/60 text-stone-300 hover:text-rose-200 rounded-xl text-xs font-bold border border-stone-700 transition-colors"
-							title="مسح المحادثة"
+							title={cmsT("cms_260")}
 						>
 							<Trash2 className="w-3.5 h-3.5" />
-							<span>مسح المحادثة</span>
+							<span>{cmsT("cms_260")}</span>
 						</button>
 					</div>
 				</div>
@@ -279,22 +281,22 @@ export const StoreAiCopilot: React.FC = () => {
 				{/* Quick Stats Banner */}
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10 text-xs">
 					<div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-						<span className="text-stone-400 text-[11px] block">المحاصيل في الكتالوج</span>
-						<span className="text-amber-300 font-bold text-base">{products.length} منتج نشط</span>
+						<span className="text-stone-400 text-[11px] block">{cmsT("cms_261")}</span>
+						<span className="text-amber-300 font-bold text-base">{products.length}  {cmsT("cms_262")}</span>
 					</div>
 					<div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-						<span className="text-stone-400 text-[11px] block">إجمالي طلبات المتجر</span>
-						<span className="text-emerald-300 font-bold text-base">{orders.length} طلبية</span>
+						<span className="text-stone-400 text-[11px] block">{cmsT("cms_263")}</span>
+						<span className="text-emerald-300 font-bold text-base">{orders.length}  {cmsT("cms_264")}</span>
 					</div>
 					<div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-						<span className="text-stone-400 text-[11px] block">حملات Meta Ads الإعلانية</span>
-						<span className="text-amber-400 font-bold text-base">{metaCampaigns.length} حملات</span>
+						<span className="text-stone-400 text-[11px] block">{cmsT("cms_265")}</span>
+						<span className="text-amber-400 font-bold text-base">{metaCampaigns.length}  {cmsT("cms_266")}</span>
 					</div>
 					<div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-						<span className="text-stone-400 text-[11px] block">بوابة دفع Ziina</span>
+						<span className="text-stone-400 text-[11px] block">{cmsT("cms_267")}</span>
 						<span className="text-emerald-400 font-bold text-base flex items-center gap-1">
 							<ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-							<span>Apple Pay جاهز</span>
+							<span>{cmsT("cms_268")}</span>
 						</span>
 					</div>
 				</div>
@@ -305,9 +307,9 @@ export const StoreAiCopilot: React.FC = () => {
 				<div className="flex items-center justify-between mb-3">
 					<span className="text-xs font-bold text-stone-700 flex items-center gap-2">
 						<Zap className="w-4 h-4 text-amber-500" />
-						<span>أوامر سريعة بنقرة واحدة (Quick Prompt Chips):</span>
+						<span>{cmsT("cms_269")}</span>
 					</span>
-					<span className="text-[11px] text-stone-500">انقر على أي أمر للتنفيذ الفوري</span>
+					<span className="text-[11px] text-stone-500">{cmsT("cms_270")}</span>
 				</div>
 				<div className="flex flex-wrap gap-2">
 					{QUICK_PROMPTS.map((qp, idx) => (
@@ -344,7 +346,7 @@ export const StoreAiCopilot: React.FC = () => {
 								}`}
 							>
 								{msg.role === "user" ? (
-									<span className="text-xs font-bold">أنت</span>
+									<span className="text-xs font-bold">{cmsT("cms_271")}</span>
 								) : (
 									<Bot className="w-5 h-5 text-white" />
 								)}
@@ -361,7 +363,7 @@ export const StoreAiCopilot: React.FC = () => {
 								{/* Header */}
 								<div className="flex items-center justify-between gap-3 mb-2 pb-1.5 border-b border-black/5 text-[10px] text-stone-400">
 									<span className="font-bold text-stone-600">
-										{msg.role === "user" ? "مشرف المتجر" : "مساعد خيرات الدار الذكي (MCP Agent)"}
+										{msg.role === "user" ? cmsT("cms_272") : cmsT("cms_273")}
 									</span>
 									<span>{msg.timestamp}</span>
 								</div>
@@ -376,7 +378,7 @@ export const StoreAiCopilot: React.FC = () => {
 									<div className="mt-3 pt-3 border-t border-stone-200/80 space-y-2">
 										<div className="text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
 											<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-											<span>أدوات MCP التي تم تنفيذها بنجاح ({msg.actions.length}):</span>
+											<span>{cmsT("cms_274")}{msg.actions.length}):</span>
 										</div>
 
 										<div className="space-y-1.5">
@@ -406,7 +408,7 @@ export const StoreAiCopilot: React.FC = () => {
 																}
 																className="text-[10px] text-amber-800 hover:text-amber-900 flex items-center gap-1 font-bold"
 															>
-																<span>{isExpanded ? "إخفاء التفاصيل" : "عرض البيانات"}</span>
+																<span>{isExpanded ? cmsT("cms_275") : cmsT("cms_276")}</span>
 																{isExpanded ? (
 																	<ChevronUp className="w-3 h-3" />
 																) : (
@@ -457,7 +459,8 @@ export const StoreAiCopilot: React.FC = () => {
 							<div className="bg-white border border-[#E8DCCB] rounded-2xl rounded-tl-none p-4 text-xs text-stone-600 flex items-center gap-3 shadow-sm">
 								<RefreshCw className="w-4 h-4 text-amber-600 animate-spin" />
 								<span className="font-semibold">
-									جاري استدعاء بروتوكول MCP وقاعدة بيانات خيرات الدار وتجهيز الرد...
+									
+									{cmsT("cms_277")}
 								</span>
 							</div>
 						</div>
@@ -480,7 +483,7 @@ export const StoreAiCopilot: React.FC = () => {
 							value={input}
 							onChange={(e) => setInput(e.target.value)}
 							disabled={isLoading}
-							placeholder="اكتب طلبك للمساعد الذكي (مثال: أطلق حملة Meta جديدة، أو غير سعر رطب خلاص العين إلى 75 د.إ)..."
+							placeholder={cmsT("cms_278")}
 							className="flex-1 p-3 text-xs sm:text-sm bg-[#FAF7F2] border border-[#E8DCCB] rounded-2xl focus:outline-none focus:border-amber-700 text-stone-800 placeholder-stone-400"
 						/>
 						<button
@@ -488,12 +491,12 @@ export const StoreAiCopilot: React.FC = () => {
 							disabled={!input.trim() || isLoading}
 							className="px-5 py-3 bg-[#2C2014] hover:bg-black text-amber-200 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow"
 						>
-							<span>إرسال</span>
+							<span>{cmsT("cms_279")}</span>
 							<Send className="w-4 h-4 rotate-180" />
 						</button>
 					</form>
 					<div className="mt-2 flex items-center justify-between text-[11px] text-stone-400 px-1">
-						<span>يدعم تنفيذ أوامر الكتالوج، ميزانيات Meta Ads، وحالات الطلبات مباشرة.</span>
+						<span>{cmsT("cms_280")}</span>
 						<span className="font-mono text-[10px]">MCP v1.0 • Gemini 3.8</span>
 					</div>
 				</div>

@@ -32,7 +32,7 @@ export const ToastContainer: React.FC = () => {
 					<button
 						onClick={() => removeToast(toast.id)}
 						className="text-stone-400 hover:text-white p-0.5"
-						aria-label="إغلاق التنبيه"
+						aria-label="close"
 					>
 						<X className="w-3.5 h-3.5" />
 					</button>

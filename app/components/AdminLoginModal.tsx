@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useStore } from "../context/StoreContext";
 import { Lock, ShieldCheck, X, AlertCircle, ArrowLeft } from "lucide-react";
+import { t } from "../frontend/locales/i18n";
 
 export const AdminLoginModal: React.FC = () => {
 	const {
@@ -20,7 +21,7 @@ export const AdminLoginModal: React.FC = () => {
 		setError("");
 		const success = adminLogin(username, password);
 		if (!success) {
-			setError("بيانات الدخول غير صحيحة. اسم المستخدم: admin وكلمة المرور: admin");
+			setError(t("admin.credentialsHint"));
 		} else {
 			setUsername("");
 			setPassword("");
@@ -40,7 +41,7 @@ export const AdminLoginModal: React.FC = () => {
 						setError("");
 					}}
 					className="absolute top-4 left-4 p-1.5 rounded-full text-stone-400 hover:text-black hover:bg-stone-100 transition-colors"
-					aria-label="إغلاق النافذة"
+					aria-label="close"
 				>
 					<X className="w-5 h-5" />
 				</button>
@@ -51,10 +52,10 @@ export const AdminLoginModal: React.FC = () => {
 						<Lock className="w-7 h-7 text-amber-800" />
 					</div>
 					<h3 className="font-serif text-2xl font-bold text-[#2C2014]">
-						دخول المشرف الإداري
+						{t("admin.loginTitle")}
 					</h3>
 					<p className="text-xs text-stone-500">
-						لوحة تحكم CMS محمية ومخصصة لإدارة مبيعات ومحاصيل تين ليوا
+						{t("admin.loginSubtitle")}
 					</p>
 				</div>
 
@@ -62,7 +63,7 @@ export const AdminLoginModal: React.FC = () => {
 				<div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 flex items-center gap-2">
 					<ShieldCheck className="w-4 h-4 text-amber-700 shrink-0" />
 					<span>
-						بيانات دخول المشرف المعتمدة: <strong>المستخدم: admin</strong> | <strong>كلمة المرور: admin</strong>
+						{t("admin.credentialsHint")}
 					</span>
 				</div>
 
@@ -77,7 +78,7 @@ export const AdminLoginModal: React.FC = () => {
 
 					<div>
 						<label className="block font-semibold text-stone-800 mb-1.5">
-							اسم المستخدم المشرف
+							{t("admin.username")}
 						</label>
 						<input
 							type="text"
@@ -93,7 +94,7 @@ export const AdminLoginModal: React.FC = () => {
 
 					<div>
 						<label className="block font-semibold text-stone-800 mb-1.5">
-							كلمة المرور الإدارية
+							{t("admin.password")}
 						</label>
 						<input
 							type="password"
@@ -110,13 +111,9 @@ export const AdminLoginModal: React.FC = () => {
 						type="submit"
 						className="w-full py-3 px-4 bg-[#2C2014] text-amber-200 font-bold rounded-xl hover:bg-black transition-colors shadow flex items-center justify-center gap-2 text-xs"
 					>
-						<span>تسجيل الدخول إلى CMS</span>
+						<span>{t("admin.loginButton")}</span>
 						<ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
 					</button>
-
-					<p className="text-[10px] text-stone-400 text-center">
-						نظام التشفير الإداري الداخلي · دولة الإمارات العربية المتحدة
-					</p>
 				</form>
 			</div>
 		</div>

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import type { Product, CartItem } from "../types/store";
+import type { Product } from "../types/store";
 import { useStore } from "../context/StoreContext";
-import { X, Plus, Minus, ShoppingBag, MapPin, Calendar, Sparkles, Check } from "lucide-react";
+import { X, Plus, Minus, ShoppingBag, MapPin, Check, Calendar, Sun } from "lucide-react";
+import { t, formatImagePath } from "../frontend/locales/i18n";
 
 interface ProductDetailModalProps {
 	product: Product | null;
@@ -16,7 +17,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 	const minQuantity = product?.minQty || 1;
 	const maxQuantity = product?.maxQty || 100;
 	const [quantity, setQuantity] = useState(minQuantity);
-	const [packaging, setPackaging] = useState<CartItem["packagingOption"]>("standard");
 	const [added, setAdded] = useState(false);
 
 	// Reset quantity to minQty whenever product changes
@@ -28,16 +28,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
 	if (!product) return null;
 
-	const isDisabled = product.disabled === 1 || !product.inStock;
-	const imageSrc = product.image
-		? product.image.startsWith("/")
-			? product.image
-			: `/${product.image}`
-		: "/images/redfig.jpg";
+	const isDisabled =
+		product.disabled === 1 ||
+		!product.inStock ||
+		(product.stockQuantity !== undefined && product.stockQuantity <= 0);
+	const imageSrc = formatImagePath(product.image);
 
 	const handleAdd = () => {
 		if (isDisabled) return;
-		addToCart(product, quantity, packaging);
+		addToCart(product, quantity);
 		setAdded(true);
 		setTimeout(() => {
 			setAdded(false);
@@ -46,7 +45,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
 	const handleAddAndGoToCart = () => {
 		if (isDisabled) return;
-		addToCart(product, quantity, packaging);
+		addToCart(product, quantity);
 		onClose();
 		setIsCartOpen(true);
 	};
@@ -54,64 +53,70 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
 			<div
-				className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#D6BE9F] max-h-[90vh] flex flex-col md:flex-row text-right"
+				className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#D6BE9F] max-h-[90vh] flex flex-col md:flex-row text-right"
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Close Button */}
 				<button
 					onClick={onClose}
-					className="absolute top-4 left-4 z-10 w-9 h-9 rounded-full bg-white/90 text-stone-700 hover:text-black hover:bg-white flex items-center justify-center shadow-md transition-colors"
-					aria-label="إغلاق النافذة"
+					className="absolute top-4 left-4 z-20 w-9 h-9 rounded-full bg-white/90 text-stone-700 hover:text-black hover:bg-white flex items-center justify-center shadow-md transition-colors"
+					aria-label="close"
 				>
 					<X className="w-5 h-5" />
 				</button>
 
-				{/* Image Column */}
-				<div className="md:w-1/2 relative bg-[#F5EFE6] min-h-[260px] md:min-h-full">
-					<img
-						src={imageSrc}
-						alt={product.name}
-						referrerPolicy="no-referrer"
-						className="w-full h-full object-cover"
-					/>
-					<div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-
-					{/* Badge or Availability Status */}
-					<div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
+				{/* Image Column - Clean Product Showcase */}
+				<div className="md:w-1/2 relative bg-gradient-to-b from-[#FAF7F2] to-[#F5EFE6] flex items-center justify-center p-6 md:p-8 min-h-[280px] md:min-h-[440px] border-b md:border-b-0 md:border-l border-[#E8DCCB]/80">
+					{/* Badges Top-Right */}
+					<div className="absolute top-4 right-4 flex flex-col gap-2 items-end z-10">
 						{isDisabled ? (
-							<div className="bg-amber-900/90 backdrop-blur-sm text-amber-200 text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-600/30 flex items-center gap-1.5 shadow">
-								<span>{product.disabledTxt || "قريباً"}</span>
+							<div className="bg-amber-900/90 backdrop-blur-sm text-amber-200 text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-600/30 flex items-center gap-1.5 shadow-sm">
+								<span>{product.disabledTxt || t("products.comingSoon")}</span>
 							</div>
 						) : (
-							<div className="bg-emerald-800/90 backdrop-blur-sm text-emerald-100 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-500/30 flex items-center gap-1.5 shadow">
-								<span>{product.disabledTxt || "متوفر"}</span>
-							</div>
-						)}
-
-						{product.badge && (
-							<div className="bg-[#2C2014]/90 backdrop-blur-sm text-amber-300 text-xs font-bold px-3 py-1 rounded-lg border border-amber-900/30 flex items-center gap-1.5 shadow">
-								<Sparkles className="w-3.5 h-3.5 text-amber-400" />
-								<span>{product.badge}</span>
+							<div className="bg-emerald-800/90 backdrop-blur-sm text-emerald-100 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+								<span>{product.disabledTxt || t("products.available")}</span>
 							</div>
 						)}
 					</div>
 
-					<div className="absolute bottom-4 right-4 left-4 text-white text-xs">
-						<p className="font-semibold text-sm">{product.season || "موسم مزارع ليوا"}</p>
-						<p className="text-stone-300 text-[11px]">{product.harvestDate || "القص والتوصيل في نفس اليوم"}</p>
+					{/* Product Image Display: Full, Uncropped, Crisp */}
+					<div className="w-full h-full flex items-center justify-center">
+						<img
+							src={imageSrc}
+							alt={product.name}
+							referrerPolicy="no-referrer"
+							className="max-h-[240px] md:max-h-[360px] w-auto max-w-full object-contain drop-shadow-md transition-transform duration-300 hover:scale-105"
+						/>
 					</div>
 				</div>
 
 				{/* Details Column */}
-				<div className="md:w-1/2 p-6 overflow-y-auto flex flex-col justify-between space-y-6">
+				<div className="md:w-1/2 p-6 md:p-7 overflow-y-auto flex flex-col justify-between space-y-5">
 					<div className="space-y-4">
-						{/* Origin & Category */}
-						<div className="flex items-center justify-between text-xs text-[#8B5A2B]">
-							<span className="flex items-center gap-1 font-medium">
+						{/* Origin, Season & Harvest Metadata Card */}
+						<div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8DCCB] text-xs">
+							<span className="flex items-center gap-1 text-[#8B5A2B] font-semibold">
 								<MapPin className="w-3.5 h-3.5 text-[#DE2A2D]" />
-								<span>{product.origin || "مزرعة تين ليوا"}</span>
+								<span>{product.origin || t("brand.name")}</span>
 							</span>
-							<span className="text-stone-400">{product.unit}</span>
+							<div className="flex items-center gap-2 text-[11px] text-stone-500">
+								{product.season && (
+									<span className="flex items-center gap-1">
+										<Sun className="w-3 h-3 text-amber-600" />
+										<span>{product.season}</span>
+									</span>
+								)}
+								{product.harvestDate && (
+									<span className="flex items-center gap-1">
+										<Calendar className="w-3 h-3 text-stone-400" />
+										<span>{product.harvestDate}</span>
+									</span>
+								)}
+								<span className="px-2 py-0.5 rounded bg-white text-stone-600 font-medium border border-stone-200">
+									{product.unit}
+								</span>
+							</div>
 						</div>
 
 						{/* Title */}
@@ -127,19 +132,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 						</div>
 
 						{/* Price */}
-						<div className="flex items-baseline gap-2">
+						<div className="flex items-baseline gap-2 pb-1 border-b border-stone-100">
 							<span className="font-serif text-3xl font-bold text-[#2C2014] tabular-nums">
 								{product.price * quantity}
 							</span>
-							<span className="text-sm font-semibold text-[#8B5A2B]">د.إ</span>
+							<span className="text-sm font-semibold text-[#8B5A2B]">{t("products.currency")}</span>
 							{product.originalPrice && (
 								<span className="text-sm text-stone-400 line-through tabular-nums mr-2">
-									{product.originalPrice * quantity} د.إ
-								</span>
-							)}
-							{quantity > 1 && (
-								<span className="text-xs text-stone-500 mr-2">
-									({product.price} د.إ للوحدة)
+									{product.originalPrice * quantity} {t("products.currency")}
 								</span>
 							)}
 						</div>
@@ -151,9 +151,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
 						{/* Tasting Notes */}
 						{product.tastingNotes && product.tastingNotes.length > 0 && (
-							<div className="pt-2">
+							<div className="pt-1">
 								<p className="text-xs font-semibold text-stone-800 mb-1.5">
-									سمات النكهة والجودة:
+									{t("products.tastingNotes")}:
 								</p>
 								<div className="flex flex-wrap gap-1.5">
 									{product.tastingNotes.map((note, idx) => (
@@ -171,44 +171,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 						{/* Storage instruction */}
 						{product.storageInstructions && (
 							<div className="p-3 bg-amber-50/70 border border-amber-200/60 rounded-xl text-xs text-amber-900 leading-normal">
-								<span className="font-bold">إرشادات الحفظ: </span>
+								<span className="font-bold">{t("products.storage")}: </span>
 								<span>{product.storageInstructions}</span>
 							</div>
 						)}
-
-						{/* Packaging option */}
-						<div>
-							<label className="block text-xs font-semibold text-stone-800 mb-1.5">
-								نوع التغليف المطلوب:
-							</label>
-							<div className="grid grid-cols-2 gap-2 text-xs">
-								<button
-									type="button"
-									onClick={() => setPackaging("standard")}
-									className={`p-2.5 rounded-lg border text-right transition-all ${
-										packaging === "standard"
-											? "border-[#2C2014] bg-[#F5EFE6] text-[#2C2014] font-semibold"
-											: "border-stone-200 hover:border-stone-300 text-stone-600"
-									}`}
-								>
-									<p className="font-medium">التغليف المبرد القياسي</p>
-									<p className="text-[10px] text-stone-500">حفظ طازج معزول</p>
-								</button>
-
-								<button
-									type="button"
-									onClick={() => setPackaging("luxury_wood_box")}
-									className={`p-2.5 rounded-lg border text-right transition-all ${
-										packaging === "luxury_wood_box"
-											? "border-[#2C2014] bg-[#F5EFE6] text-[#2C2014] font-semibold"
-											: "border-stone-200 hover:border-stone-300 text-stone-600"
-									}`}
-								>
-									<p className="font-medium">سحارة خشبية للإهداء</p>
-									<p className="text-[10px] text-stone-500">مخصصة لضيافة المجالس</p>
-								</button>
-							</div>
-						</div>
 					</div>
 
 					{/* Action Controls */}
@@ -216,19 +182,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 						{!isDisabled ? (
 							<div className="flex items-center justify-between gap-4">
 								<div>
-									<span className="text-xs font-semibold text-stone-700">الكمية:</span>
-									{minQuantity > 1 && (
-										<span className="text-[11px] text-amber-800 mr-2 font-medium">
-											(أقل كمية للطلب: {minQuantity})
-										</span>
-									)}
+									<span className="text-xs font-semibold text-stone-700">
+										{t("products.minQuantity", { qty: minQuantity })}
+									</span>
 								</div>
 								<div className="flex items-center border border-stone-300 rounded-lg overflow-hidden bg-white">
 									<button
 										onClick={() => setQuantity((q) => Math.max(minQuantity, q - 1))}
 										disabled={quantity <= minQuantity}
 										className="p-2 text-stone-600 hover:bg-stone-100 transition-colors disabled:opacity-40"
-										aria-label="إنقاص الكمية"
+										aria-label="decrease"
 									>
 										<Minus className="w-4 h-4" />
 									</button>
@@ -239,7 +202,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 										onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
 										disabled={quantity >= maxQuantity}
 										className="p-2 text-stone-600 hover:bg-stone-100 transition-colors disabled:opacity-40"
-										aria-label="زيادة الكمية"
+										aria-label="increase"
 									>
 										<Plus className="w-4 h-4" />
 									</button>
@@ -247,7 +210,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 							</div>
 						) : (
 							<div className="p-3 bg-stone-100 border border-stone-200 rounded-xl text-center text-xs font-semibold text-stone-600">
-								هذا المحصول غير متوفر للطلب المباشر حالياً ({product.disabledTxt || "قريباً"})
+								{product.disabledTxt || t("products.comingSoon")}
 							</div>
 						)}
 
@@ -266,15 +229,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 								{added ? (
 									<>
 										<Check className="w-4 h-4 text-emerald-300" />
-										<span>تمت الإضافة للسلة</span>
+										<span>{t("products.addSuccessTitle")}</span>
 									</>
 								) : !isDisabled ? (
 									<>
 										<ShoppingBag className="w-4 h-4 text-amber-400" />
-										<span>أضف إلى السلة ({product.price * quantity} د.إ)</span>
+										<span>
+											{t("products.addToCart")} ({product.price * quantity} {t("products.currency")})
+										</span>
 									</>
 								) : (
-									<span>{product.disabledTxt || "قريباً"}</span>
+									<span>{product.disabledTxt || t("products.comingSoon")}</span>
 								)}
 							</button>
 
@@ -283,7 +248,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 									onClick={handleAddAndGoToCart}
 									className="px-4 py-3 bg-[#F5EFE6] text-[#574127] border border-[#D6BE9F] rounded-xl text-xs font-bold hover:bg-[#E8DCCB] transition-colors"
 								>
-									إتمام الطلب
+									{t("cart.checkout")}
 								</button>
 							)}
 						</div>

@@ -1,3 +1,4 @@
+import { cmsT, cmsFormat } from "../../frontend/locales/cmsI18n";
 import React, { useState, useEffect } from "react";
 import { useStore } from "../../context/StoreContext";
 import {
@@ -94,7 +95,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 
 	// Campaign Creation Form State
 	const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
-	const [newCampName, setNewCampName] = useState("حملة موسم رطب إخلاص وفقع الزبيدي الملكي");
+	const [newCampName, setNewCampName] = useState(cmsT("cms_281"));
 	const [newCampObjective, setNewCampObjective] = useState<"OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES">("OUTCOME_LEADS");
 	const [newCampBudget, setNewCampBudget] = useState(200);
 	const [createdCampResult, setCreatedCampResult] = useState<any | null>(null);
@@ -117,7 +118,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 		navigator.clipboard.writeText(text);
 		setCopiedText(label);
 		setTimeout(() => setCopiedText(null), 2500);
-		showToast("تم النسخ بنجاح", `تم نسخ كود ${label} إلى الحافظة.`);
+		showToast(cmsT("cms_282"), cmsFormat("cms_198", [label]));
 	};
 
 	// 1. Live probe of https://mcp.facebook.com/ads
@@ -139,14 +140,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 				setProbeStatus({
 					tested: true,
 					loading: false,
-					error: data.error || "تعذر فحص خادم Meta",
+					error: data.error || cmsT("cms_283"),
 				});
 			}
 		} catch (e) {
 			setProbeStatus({
 				tested: true,
 				loading: false,
-				error: "فشل الاتصال عبر الشبكة بخادم Meta",
+				error: cmsT("cms_284"),
 			});
 		}
 	};
@@ -158,9 +159,9 @@ export const MetaAdsMcpServer: React.FC = () => {
 			setTokenVerification({
 				loading: false,
 				verified: false,
-				error: "يرجى لصق رمز وصول حقيقي (User Access Token) أولاً.",
+				error: cmsT("cms_285"),
 			});
-			showToast("تنبيه", "يرجى لصق رمز وصول حقيقي من فيسبوك للتحقق.", "warning");
+			showToast(cmsT("cms_189"), cmsT("cms_286"), "warning");
 			return;
 		}
 
@@ -185,21 +186,21 @@ export const MetaAdsMcpServer: React.FC = () => {
 					grantedPermissions: data.grantedPermissions,
 				});
 				updateMetaConfig({ accessToken: targetToken });
-				showToast("تم التحقق بنجاح", `تم تأكيد هوية الحساب الحقيقي: ${data.user?.name || "Meta User"}`);
+				showToast(cmsT("cms_287"), cmsFormat("cms_288", [data.user?.name || "Meta User"]));
 			} else {
 				setTokenVerification({
 					loading: false,
 					verified: false,
-					error: data.error || "الرمز المميز غير صالح في Facebook Graph API",
+					error: data.error || cmsT("cms_289"),
 					rawError: data.metaError,
 				});
-				showToast("فشل التحقق", data.error || "رمز الوصول غير صالح", "warning");
+				showToast(cmsT("cms_290"), data.error || cmsT("cms_291"), "warning");
 			}
 		} catch (e) {
 			setTokenVerification({
 				loading: false,
 				verified: false,
-				error: "خطأ في الشبكة أثناء الاتصال بـ Graph API",
+				error: cmsT("cms_292"),
 			});
 		}
 	};
@@ -209,10 +210,10 @@ export const MetaAdsMcpServer: React.FC = () => {
 		const token = accessToken.trim();
 		if (!token) {
 			setAccountsFetchError({
-				message: "يرجى إدخال رمز وصول Meta صالح (Access Token) أولاً. لا يمكن جلب الحسابات الإعلانية الحقيقية بدون مصادقة رسمية من فيسبوك.",
+				message: cmsT("cms_293"),
 				code: "TOKEN_REQUIRED",
 			});
-			showToast("مطلوب رمز وصول", "يرجى لصق رمز الوصول من فيسبوك لجلب الحسابات الحقيقية.", "warning");
+			showToast(cmsT("cms_294"), cmsT("cms_295"), "warning");
 			return;
 		}
 
@@ -249,26 +250,26 @@ export const MetaAdsMcpServer: React.FC = () => {
 						setAdAccountId(data.accounts[0].id);
 						updateMetaConfig({ adAccountId: data.accounts[0].id });
 					}
-					showToast("تم جلب الحسابات الحقيقية", `تم العثور على ${data.accounts.length} حساب إعلاني حقيقي مسجل في Meta.`);
+					showToast(cmsT("cms_296"), cmsFormat("cms_297", [data.accounts.length]));
 				} else {
-					showToast("لا توجد حسابات إعلانية", "تم الاتصال بنجاح ولكن لم يتم العثور على حسابات إعلانية منشأة لهذا المستخدم.", "info");
+					showToast(cmsT("cms_298"), cmsT("cms_299"), "info");
 				}
 			} else {
 				setAccountsFetchError({
-					message: data.error || "فشل جلب الحسابات من خادم Meta Graph API",
+					message: data.error || cmsT("cms_300"),
 					metaError: data.metaError,
 					code: data.metaError?.code || res.status,
 					isSystemUser: Boolean(data.isSystemUserToken),
 					resolutionStep: data.resolutionStep,
 				});
-				showToast("تنبيه من Meta", data.error || "تعذر جلب الحسابات الإعلانية الحقيقية", "warning");
+				showToast(cmsT("cms_301"), data.error || cmsT("cms_302"), "warning");
 			}
 		} catch (e) {
 			setAccountsFetchError({
-				message: "فشل الاتصال بشبكة Meta Graph API. تأكد من اتصال الإنترنت.",
+				message: cmsT("cms_303"),
 				code: "NETWORK_ERROR",
 			});
-			showToast("خطأ شبكة", "تعذر الاتصال بخوادم Meta", "warning");
+			showToast(cmsT("cms_196"), cmsT("cms_304"), "warning");
 		} finally {
 			setAccountsLoading(false);
 		}
@@ -280,11 +281,11 @@ export const MetaAdsMcpServer: React.FC = () => {
 		const token = accessToken.trim();
 
 		if (!targetId) {
-			showToast("تنبيه", "يرجى إدخال معرف الحساب الإعلاني (مثل act_123456789)", "warning");
+			showToast(cmsT("cms_189"), cmsT("cms_305"), "warning");
 			return;
 		}
 		if (!token) {
-			showToast("تنبيه", "يرجى لصق رمز وصول Meta صالح لفحص الحساب", "warning");
+			showToast(cmsT("cms_189"), cmsT("cms_306"), "warning");
 			return;
 		}
 
@@ -314,12 +315,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 			if (data.success && data.account) {
 				setSingleAccountResult(data.account);
 				updateMetaConfig({ adAccountId: data.account.id });
-				showToast("تم التحقق من الحساب", `الحساب: ${data.account.name} (${data.account.currency})`);
+				showToast(cmsT("cms_307"), cmsFormat("cms_308", [data.account.name, data.account.currency]));
 			} else {
-				showToast("خطأ في فحص الحساب", data.error || "الحساب غير موجود أو غير متاح لهذا الرمز", "warning");
+				showToast(cmsT("cms_309"), data.error || cmsT("cms_310"), "warning");
 			}
 		} catch (e) {
-			showToast("خطأ", "تعذر استكمال فحص الحساب في خوادم Meta", "warning");
+			showToast(cmsT("cms_14"), cmsT("cms_311"), "warning");
 		} finally {
 			setInspectingAccount(false);
 		}
@@ -328,7 +329,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 	// 5. Live Tool Execution: create_campaign on Meta
 	const handleCreateLiveCampaign = async () => {
 		if (!newCampName.trim()) {
-			showToast("تنبيه", "يرجى تحديد اسم الحملة الإعلانية", "warning");
+			showToast(cmsT("cms_189"), cmsT("cms_312"), "warning");
 			return;
 		}
 
@@ -344,7 +345,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 					name: newCampName,
 					objective: newCampObjective,
 					dailyBudget: newCampBudget,
-					targetEmirates: ["أبوظبي", "دبي", "الشارقة", "العين"],
+					targetEmirates: [cmsT("cms_1"), cmsT("cms_2"), cmsT("cms_3"), cmsT("cms_4")],
 				}),
 			});
 
@@ -357,21 +358,21 @@ export const MetaAdsMcpServer: React.FC = () => {
 					objective: (newCampObjective as any) || "OUTCOME_LEADS",
 					status: "ACTIVE",
 					dailyBudget: newCampBudget,
-					targetEmirates: ["أبوظبي", "دبي", "الشارقة", "العين"],
-					targetInterests: ["تمور ورطب فاخر", "فقع وخيرات طبيعية", "ضيافة مجالس الإمارات"],
+					targetEmirates: [cmsT("cms_1"), cmsT("cms_2"), cmsT("cms_3"), cmsT("cms_4")],
+					targetInterests: [cmsT("cms_313"), cmsT("cms_314"), cmsT("cms_315")],
 					productCategory: "all",
 					headline: data.campaign.name,
-					primaryText: "أطايب التين والرطب الإماراتي الفاخر من واحات ليوا ومزارع الدار",
+					primaryText: cmsT("cms_316"),
 					callToAction: "ORDER_NOW",
 					imageUrl: "/images/product_emirati_rutab_1792506810615.jpg",
 				});
 
-				showToast("تم تسجيل الحملة بنجاح", `تم إنشاء الحملة [${data.campaign.name}] وتفعيلها في المتجر.`);
+				showToast(cmsT("cms_317"), cmsFormat("cms_318", [data.campaign.name]));
 			} else {
-				showToast("فشل إنشاء الحملة", data.error || "حدث خطأ أثناء الاتصال بـ Meta", "warning");
+				showToast(cmsT("cms_319"), data.error || cmsT("cms_320"), "warning");
 			}
 		} catch (e) {
-			showToast("خطأ", "تعذر استكمال طلب إنشاء الحملة", "warning");
+			showToast(cmsT("cms_14"), cmsT("cms_321"), "warning");
 		} finally {
 			setIsCreatingCampaign(false);
 		}
@@ -411,12 +412,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 					realMcpOutput: data.realMcpOutput,
 					timestamp: new Date().toLocaleTimeString("ar-AE"),
 				});
-				showToast("تم تنفيذ أمر MCP", "تمت معالجة وتنفيذ الأمر عبر خادم Meta Ads MCP.");
+				showToast(cmsT("cms_322"), cmsT("cms_323"));
 			} else {
-				setPromptResult(`خطأ من الخادم: ${data.error || "فشل تنفيذ الأمر"}`);
+				setPromptResult(cmsFormat("cms_324", [data.error || "Failed to execute"]));
 			}
 		} catch (err) {
-			setPromptResult("تعذر الاتصال بخادم MCP المحلي.");
+			setPromptResult(cmsT("cms_326"));
 		} finally {
 			setIsExecuting(false);
 		}
@@ -425,23 +426,23 @@ export const MetaAdsMcpServer: React.FC = () => {
 	// 7. Direct sync of leads into Store Leads CRM
 	const handleSyncLeadsToCms = () => {
 		const sampleSyncLead = {
-			customerName: "سعادة سعيد المنصوري",
+			customerName: cmsT("cms_327"),
 			phone: "+971 50 882 1904",
-			emirate: "أبوظبي - البطين",
-			interestedProduct: "فقع زبيدي طازج 3 كجم",
-			quantityEstimated: "3 كجم",
+			emirate: cmsT("cms_328"),
+			interestedProduct: cmsT("cms_329"),
+			quantityEstimated: cmsT("cms_330"),
 			budgetAED: 1850,
 			leadStatus: "new" as const,
-			sourceCampaign: "حملة استقطاب مجالس الإمارات (Meta Ads MCP)",
-			notes: "طلب استفسار فوري عبر إعلان Meta Ads MCP للحجز المسبق لرمضان",
+			sourceCampaign: cmsT("cms_331"),
+			notes: cmsT("cms_332"),
 			totalEstimatedValueAED: 1850,
-			name: "سعادة سعيد المنصوري",
-			city: "أبوظبي - البطين",
-			interestedProducts: ["فقع زبيدي طازج 3 كجم", "رطب إخلاص ليوا فاخر"],
+			name: cmsT("cms_327"),
+			city: cmsT("cms_328"),
+			interestedProducts: [cmsT("cms_329"), cmsT("cms_333")],
 			status: "NEW",
 		};
 		addMarketingLead(sampleSyncLead);
-		showToast("تمت مزامنة عميل جديد", "تم استيراد العميل المحتمل من نموذج Meta Lead Form بنجاح إلى جدول العملاء.");
+		showToast(cmsT("cms_334"), cmsT("cms_335"));
 	};
 
 	const claudeCommand = `claude mcp add --transport http --client-id ${metaAppId || "<META_APP_ID>"} meta-ads ${mcpServerUrl}`;
@@ -482,7 +483,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 							className="px-3 py-1.5 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
 						>
 							<RefreshCw className={`w-3.5 h-3.5 ${probeStatus.loading ? "animate-spin" : ""}`} />
-							<span>فحص الاتصال الحي</span>
+							<span>{cmsT("cms_336")}</span>
 						</button>
 					</div>
 				</div>
@@ -520,11 +521,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 								</h1>
 								<span className="text-[11px] bg-emerald-400 text-stone-900 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
 									<Zap className="w-3.5 h-3.5 text-stone-900" />
-									<span>اتصال حقيقي مباشر (Live Meta Graph API)</span>
+									<span>{cmsT("cms_337")}</span>
 								</span>
 							</div>
 							<p className="text-xs text-blue-100/90 pt-1 leading-relaxed">
-								بوابة الاتصال الحقيقي مع خوادم Meta لإدارة الحسابات الإعلانية، إطلاق الحملات، وسحب العملاء المحتملين بدون أي بيانات وهمية
+								
+								{cmsT("cms_338")}
 							</p>
 						</div>
 					</div>
@@ -536,7 +538,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 							rel="noreferrer"
 							className="px-4 py-2.5 bg-amber-400 text-stone-900 hover:bg-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-md"
 						>
-							<span>توليد رمز حقيقي من فيسبوك (Graph API Explorer)</span>
+							<span>{cmsT("cms_339")}</span>
 							<ExternalLink className="w-3.5 h-3.5 text-stone-900" />
 						</a>
 					</div>
@@ -553,7 +555,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 						}`}
 					>
 						<Play className="w-3.5 h-3.5" />
-						<span>منصة التشغيل وجلب الحسابات (Real Operations)</span>
+						<span>{cmsT("cms_340")}</span>
 					</button>
 
 					<button
@@ -565,7 +567,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 						}`}
 					>
 						<FileCode className="w-3.5 h-3.5" />
-						<span>دليل البدء والتوثيق الرسمي (# Get started Guide)</span>
+						<span>{cmsT("cms_341")}</span>
 					</button>
 
 					<button
@@ -577,7 +579,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 						}`}
 					>
 						<Terminal className="w-3.5 h-3.5" />
-						<span>موجّه JSON-RPC المباشر (Raw MCP Terminal)</span>
+						<span>{cmsT("cms_342")}</span>
 					</button>
 				</div>
 			</div>
@@ -596,10 +598,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 								</div>
 								<div>
 									<h2 className="font-serif text-base font-bold text-[#2C2014]">
-										بوابة جلب الحساب الإعلاني الحقيقي من Meta (Real Account Connection)
+										
+										{cmsT("cms_343")}
 									</h2>
 									<p className="text-xs text-stone-500">
-										اتصال مباشر مع خوادم <span className="font-mono text-blue-700" dir="ltr">graph.facebook.com/v21.0/me/adaccounts</span>
+										
+										{cmsT("cms_344")} <span className="font-mono text-blue-700" dir="ltr">graph.facebook.com/v21.0/me/adaccounts</span>
 									</p>
 								</div>
 							</div>
@@ -608,12 +612,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 								{tokenVerification.verified ? (
 									<span className="text-xs bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
 										<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-										<span>المصادقة نشطة: {tokenVerification.userName}</span>
+										<span>{cmsT("cms_345")} {tokenVerification.userName}</span>
 									</span>
 								) : (
 									<span className="text-xs bg-amber-100 text-amber-800 border border-amber-300 font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
 										<AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-										<span>بانتظار رمز الوصول الحقيقي</span>
+										<span>{cmsT("cms_346")}</span>
 									</span>
 								)}
 							</div>
@@ -624,7 +628,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<span className="font-bold text-[#1877F2] flex items-center gap-1.5 text-sm">
 									<Globe className="w-4 h-4 text-[#1877F2]" />
-									<span>كيفية جلب حسابك الإعلاني الحقيقي من فيسبوك (في أقل من دقيقة):</span>
+									<span>{cmsT("cms_347")}</span>
 								</span>
 								<a
 									href={graphExplorerUrl}
@@ -632,7 +636,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 									rel="noreferrer"
 									className="px-3 py-1 bg-[#1877F2] hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 shadow-sm transition-colors"
 								>
-									<span>فتح أداة Graph API Explorer</span>
+									<span>{cmsT("cms_348")}</span>
 									<ExternalLink className="w-3 h-3 text-white" />
 								</a>
 							</div>
@@ -640,28 +644,31 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="p-2.5 bg-white rounded-xl border border-stone-200 space-y-1">
 									<div className="font-bold text-stone-900 flex items-center gap-1">
 										<span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-mono flex items-center justify-center text-[10px]">1</span>
-										<span>توليد الرمز المميز</span>
+										<span>{cmsT("cms_349")}</span>
 									</div>
 									<p className="text-stone-600">
-										افتح الرابط أعلاه، واختر تطبيقك في فيسبوك ثم اضغط <strong>Generate Access Token</strong>.
+										
+										{cmsT("cms_350")} <strong>Generate Access Token</strong>.
 									</p>
 								</div>
 								<div className="p-2.5 bg-white rounded-xl border border-stone-200 space-y-1">
 									<div className="font-bold text-stone-900 flex items-center gap-1">
 										<span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-mono flex items-center justify-center text-[10px]">2</span>
-										<span>منح الصلاحية المطلوبة</span>
+										<span>{cmsT("cms_351")}</span>
 									</div>
 									<p className="text-stone-600">
-										تأكد من تحديد صلاحية <code className="font-mono text-blue-700 font-bold" dir="ltr">ads_read</code> و <code className="font-mono text-blue-700 font-bold" dir="ltr">ads_management</code>.
+										
+										{cmsT("cms_352")} <code className="font-mono text-blue-700 font-bold" dir="ltr">ads_read</code>  {cmsT("cms_353")} <code className="font-mono text-blue-700 font-bold" dir="ltr">ads_management</code>.
 									</p>
 								</div>
 								<div className="p-2.5 bg-white rounded-xl border border-stone-200 space-y-1">
 									<div className="font-bold text-stone-900 flex items-center gap-1">
 										<span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 font-mono flex items-center justify-center text-[10px]">3</span>
-										<span>لصق الرمز وجلب الحسابات</span>
+										<span>{cmsT("cms_354")}</span>
 									</div>
 									<p className="text-stone-600">
-										الصق الرمز في الحقل أدناه واضغط <strong>"جلب الحسابات الإعلانية الحقيقية"</strong>.
+										
+										{cmsT("cms_355")} <strong>{cmsT("cms_356")}</strong>.
 									</p>
 								</div>
 							</div>
@@ -673,7 +680,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 							<div className="space-y-1.5">
 								<div className="flex items-center justify-between">
 									<label className="font-semibold text-stone-800 flex items-center gap-1">
-										<span>Meta User Access Token (رمز الوصول):</span>
+										<span>{cmsT("cms_357")}</span>
 										<span className="text-rose-500 font-bold">*</span>
 									</label>
 									{accessToken && (
@@ -681,7 +688,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 											onClick={() => setAccessToken("")}
 											className="text-[11px] text-stone-400 hover:text-stone-600"
 										>
-											مسح الرمز
+											
+											{cmsT("cms_358")}
 										</button>
 									)}
 								</div>
@@ -693,7 +701,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 											setAccessToken(e.target.value);
 											setAccountsFetchError(null);
 										}}
-										placeholder="ألصق رمز الوصول هنا: EAABwzLixnjYBA..."
+										placeholder={cmsT("cms_359")}
 										className="flex-1 p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-blue-600 bg-stone-50"
 										dir="ltr"
 									/>
@@ -701,14 +709,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 										onClick={() => handleVerifyToken()}
 										disabled={tokenVerification.loading || !accessToken.trim()}
 										className="px-3.5 py-2.5 bg-[#1877F2] hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-50"
-										title="التحقق من صلاحية الرمز في Facebook"
+										title={cmsT("cms_360")}
 									>
 										{tokenVerification.loading ? (
 											<RefreshCw className="w-3.5 h-3.5 animate-spin" />
 										) : (
 											<ShieldCheck className="w-3.5 h-3.5" />
 										)}
-										<span>تحقق</span>
+										<span>{cmsT("cms_361")}</span>
 									</button>
 								</div>
 							</div>
@@ -717,11 +725,13 @@ export const MetaAdsMcpServer: React.FC = () => {
 							<div className="space-y-1.5">
 								<div className="flex items-center justify-between">
 									<label className="font-semibold text-stone-800">
-										معرف الحساب الإعلاني (Ad Account ID):
+										
+										{cmsT("cms_362")}
 									</label>
 									{adAccountId && (
 										<span className="font-mono text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-											الحساب المحدد حالياً
+											
+											{cmsT("cms_363")}
 										</span>
 									)}
 								</div>
@@ -730,7 +740,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 										type="text"
 										value={adAccountId}
 										onChange={(e) => setAdAccountId(e.target.value)}
-										placeholder="مثال: act_1234567890"
+										placeholder={cmsT("cms_364")}
 										className="flex-1 p-2.5 border border-stone-300 rounded-xl font-mono text-xs focus:outline-none focus:border-blue-600 bg-stone-50 text-left"
 										dir="ltr"
 									/>
@@ -738,14 +748,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 										onClick={handleInspectAccount}
 										disabled={inspectingAccount || !adAccountId.trim()}
 										className="px-3.5 py-2.5 bg-stone-800 hover:bg-black text-amber-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 disabled:opacity-50"
-										title="فحص هذا الحساب المحدد مباشرة في Meta"
+										title={cmsT("cms_365")}
 									>
 										{inspectingAccount ? (
 											<RefreshCw className="w-3.5 h-3.5 animate-spin" />
 										) : (
 											<Search className="w-3.5 h-3.5" />
 										)}
-										<span>فحص الحساب</span>
+										<span>{cmsT("cms_366")}</span>
 									</button>
 								</div>
 							</div>
@@ -761,18 +771,19 @@ export const MetaAdsMcpServer: React.FC = () => {
 								{accountsLoading ? (
 									<>
 										<RefreshCw className="w-4 h-4 animate-spin" />
-										<span>جارِ الاتصال المباشر بخوادم Meta Graph API...</span>
+										<span>{cmsT("cms_367")}</span>
 									</>
 								) : (
 									<>
 										<RefreshCw className="w-4 h-4" />
-										<span>جلب الحسابات الإعلانية الحقيقية من فيسبوك الآن (Fetch Real Ad Accounts)</span>
+										<span>{cmsT("cms_368")}</span>
 									</>
 								)}
 							</button>
 
 							<span className="text-[11px] text-stone-500 self-center">
-								يتم إرسال الطلب مباشرة إلى <code className="font-mono text-stone-700" dir="ltr">graph.facebook.com</code> بدون أي بيانات وهمية
+								
+								{cmsT("cms_369")} <code className="font-mono text-stone-700" dir="ltr">graph.facebook.com</code>  {cmsT("cms_370")}
 							</span>
 						</div>
 
@@ -782,7 +793,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<span className="flex items-center gap-2">
 									<CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
 									<span>
-										تم التحقق من الحساب بنجاح عبر Facebook Graph API: <strong>{tokenVerification.userName}</strong> (ID: {tokenVerification.userId})
+										
+										{cmsT("cms_371")} <strong>{tokenVerification.userName}</strong> (ID: {tokenVerification.userId})
 									</span>
 								</span>
 								<div className="flex gap-1 flex-wrap">
@@ -807,12 +819,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 										{accountsFetchError.isSystemUser || accountsFetchError.code === 100 ? (
 											<>
 												<Info className="w-4 h-4 text-amber-700 shrink-0" />
-												<span className="text-amber-900">تنبيه: تم الكشف عن رمز مستخدم نظام (System User Token)</span>
+												<span className="text-amber-900">{cmsT("cms_372")}</span>
 											</>
 										) : (
 											<>
 												<AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-												<span className="text-rose-800">استجابة خادم Meta: تعذر جلب الحسابات</span>
+												<span className="text-rose-800">{cmsT("cms_373")}</span>
 											</>
 										)}
 									</div>
@@ -827,17 +839,18 @@ export const MetaAdsMcpServer: React.FC = () => {
 								{(accountsFetchError.isSystemUser || accountsFetchError.code === 100) ? (
 									<div className="space-y-2 bg-white/80 p-3.5 rounded-xl border border-amber-200">
 										<p className="font-semibold text-stone-800 leading-relaxed">
-											خوادم Meta لا تدعم استدعاء <code className="font-mono bg-stone-100 text-stone-800 px-1 py-0.5 rounded" dir="ltr">/me/adaccounts</code> لرموز مستخدمي النظام (System Users)، وهذا هو سبب ظهور خطأ (#100 Unsupported get request).
+											
+											{cmsT("cms_374")} <code className="font-mono bg-stone-100 text-stone-800 px-1 py-0.5 rounded" dir="ltr">/me/adaccounts</code>  {cmsT("cms_375")}
 										</p>
 										<div className="space-y-1 text-stone-700 pt-1">
-											<strong className="block text-stone-900 text-xs">الحل الفوري لجلب حسابك:</strong>
+											<strong className="block text-stone-900 text-xs">{cmsT("cms_376")}</strong>
 											<div className="flex items-center gap-1.5">
 												<span className="w-4 h-4 rounded-full bg-amber-200 text-amber-900 font-bold flex items-center justify-center text-[10px]">1</span>
-												<span>اكتب رقم حسابك الإعلاني في خانة "معرف الحساب الإعلاني (Ad Account ID)" بالأعلى (مثال: <code>1234567890</code> أو <code>act_1234567890</code>).</span>
+												<span>{cmsT("cms_377")} <code>1234567890</code>  {cmsT("cms_378")} <code>act_1234567890</code>).</span>
 											</div>
 											<div className="flex items-center gap-1.5">
 												<span className="w-4 h-4 rounded-full bg-amber-200 text-amber-900 font-bold flex items-center justify-center text-[10px]">2</span>
-												<span>اضغط على زر <strong>"فحص الحساب"</strong> للتحقق منه واعتماده فوراً من خوادم فيسبوك.</span>
+												<span>{cmsT("cms_379")} <strong>{cmsT("cms_380")}</strong>  {cmsT("cms_381")}</span>
 											</div>
 										</div>
 									</div>
@@ -862,7 +875,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 										rel="noreferrer"
 										className="text-blue-700 underline font-bold hover:text-blue-900 inline-flex items-center gap-1"
 									>
-										<span>أو استخدم رمز مستخدم عادي (User Access Token) من Graph API Explorer</span>
+										<span>{cmsT("cms_382")}</span>
 										<ExternalLink className="w-3 h-3 text-blue-700" />
 									</a>
 								</div>
@@ -875,7 +888,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="flex items-center justify-between">
 									<span className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
 										<CheckCircle2 className="w-4 h-4 text-emerald-600" />
-										<span>الحسابات الإعلانية الحقيقية المسترجعة من خوادم Meta ({adAccountsList.length}):</span>
+										<span>{cmsT("cms_383")}{adAccountsList.length}):</span>
 									</span>
 									<span className="font-mono text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300 font-bold">
 										LIVE GRAPH API DATA
@@ -889,7 +902,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 											onClick={() => {
 												setAdAccountId(acc.id);
 												updateMetaConfig({ adAccountId: acc.id });
-												showToast("تم اختيار الحساب الحقيقي", `تم ضبط الحساب: ${acc.name}`);
+												showToast(cmsT("cms_384"), cmsFormat("cms_385", [acc.name]));
 											}}
 											className={`p-3.5 rounded-xl border text-right cursor-pointer transition-all ${
 												adAccountId === acc.id
@@ -913,14 +926,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 												<span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
 													acc.account_status === 1 ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"
 												}`}>
-													{acc.account_status === 1 ? "نشط (Active)" : "غير نشط"}
+													{acc.account_status === 1 ? cmsT("cms_386") : cmsT("cms_387")}
 												</span>
 												<button
 													className={`font-bold text-xs ${
 														adAccountId === acc.id ? "text-blue-700" : "text-stone-500 hover:text-stone-900"
 													}`}
 												>
-													{adAccountId === acc.id ? "✓ الحساب المعتمد" : "اختيار هذا الحساب"}
+													{adAccountId === acc.id ? cmsT("cms_388") : cmsT("cms_389")}
 												</button>
 											</div>
 										</div>
@@ -935,7 +948,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="flex items-center justify-between">
 									<span className="font-bold text-emerald-900 flex items-center gap-1.5">
 										<CheckCircle2 className="w-4 h-4 text-emerald-600" />
-										<span>تم التحقق من الحساب الإعلاني بنجاح في خوادم فيسبوك:</span>
+										<span>{cmsT("cms_390")}</span>
 									</span>
 									<span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-emerald-300">
 										{singleAccountResult.id}
@@ -943,19 +956,19 @@ export const MetaAdsMcpServer: React.FC = () => {
 								</div>
 								<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-stone-800 pt-1">
 									<div className="p-2 bg-white rounded-lg border border-emerald-200">
-										<span className="text-[10px] text-stone-500 block">اسم الحساب:</span>
+										<span className="text-[10px] text-stone-500 block">{cmsT("cms_391")}</span>
 										<strong className="text-xs truncate block">{singleAccountResult.name}</strong>
 									</div>
 									<div className="p-2 bg-white rounded-lg border border-emerald-200">
-										<span className="text-[10px] text-stone-500 block">العملة:</span>
+										<span className="text-[10px] text-stone-500 block">{cmsT("cms_392")}</span>
 										<strong className="text-xs font-mono">{singleAccountResult.currency}</strong>
 									</div>
 									<div className="p-2 bg-white rounded-lg border border-emerald-200">
-										<span className="text-[10px] text-stone-500 block">إجمالي الإنفاق:</span>
+										<span className="text-[10px] text-stone-500 block">{cmsT("cms_393")}</span>
 										<strong className="text-xs font-mono text-emerald-700">{singleAccountResult.amount_spent}</strong>
 									</div>
 									<div className="p-2 bg-white rounded-lg border border-emerald-200">
-										<span className="text-[10px] text-stone-500 block">المنطقة الزمنية:</span>
+										<span className="text-[10px] text-stone-500 block">{cmsT("cms_394")}</span>
 										<strong className="text-xs font-mono text-[11px]">{singleAccountResult.timezone}</strong>
 									</div>
 								</div>
@@ -1008,7 +1021,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 											<PlusCircle className="w-4 h-4 text-amber-700" />
 										</div>
 										<h3 className="font-serif text-base font-bold text-[#2C2014]">
-											أداة إنشاء حملة إعلانية (`create_campaign`)
+											
+											{cmsT("cms_395")}
 										</h3>
 									</div>
 									<span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold">
@@ -1016,12 +1030,13 @@ export const MetaAdsMcpServer: React.FC = () => {
 									</span>
 								</div>
 								<p className="text-xs text-stone-500 leading-relaxed">
-									إطلاق حملة إعلانية حقيقية ومباشرة تستهدف مجالس وضيافة الإمارات وتتكامل مع كتالوج المتجر
+									
+									{cmsT("cms_396")}
 								</p>
 
 								<div className="space-y-3 text-xs pt-1">
 									<div>
-										<label className="block font-semibold text-stone-700 mb-1">اسم الحملة:</label>
+										<label className="block font-semibold text-stone-700 mb-1">{cmsT("cms_397")}</label>
 										<input
 											type="text"
 											value={newCampName}
@@ -1032,20 +1047,20 @@ export const MetaAdsMcpServer: React.FC = () => {
 
 									<div className="grid grid-cols-2 gap-2">
 										<div>
-											<label className="block font-semibold text-stone-700 mb-1">هدف الحملة (Objective):</label>
+											<label className="block font-semibold text-stone-700 mb-1">{cmsT("cms_398")}</label>
 											<select
 												value={newCampObjective}
 												onChange={(e) => setNewCampObjective(e.target.value as any)}
 												className="w-full p-2.5 border border-stone-300 rounded-xl text-xs bg-stone-50"
 											>
-												<option value="OUTCOME_LEADS">عملاء محتملين (Leads)</option>
-												<option value="OUTCOME_TRAFFIC">زيارات للمتجر (Traffic)</option>
-												<option value="OUTCOME_SALES">مبيعات الكتالوج (Sales)</option>
+												<option value="OUTCOME_LEADS">{cmsT("cms_399")}</option>
+												<option value="OUTCOME_TRAFFIC">{cmsT("cms_400")}</option>
+												<option value="OUTCOME_SALES">{cmsT("cms_401")}</option>
 											</select>
 										</div>
 
 										<div>
-											<label className="block font-semibold text-stone-700 mb-1">الميزانية اليومية (درهم):</label>
+											<label className="block font-semibold text-stone-700 mb-1">{cmsT("cms_402")}</label>
 											<input
 												type="number"
 												value={newCampBudget}
@@ -1068,12 +1083,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 									{isCreatingCampaign ? (
 										<>
 											<RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
-											<span>جارِ إرسال طلب إنشاء الحملة لـ Meta...</span>
+											<span>{cmsT("cms_403")}</span>
 										</>
 									) : (
 										<>
 											<Zap className="w-4 h-4 text-amber-400" />
-											<span>تنفيذ أداة `create_campaign` وإطلاق الحملة الآن</span>
+											<span>{cmsT("cms_404")}</span>
 										</>
 									)}
 								</button>
@@ -1082,10 +1097,10 @@ export const MetaAdsMcpServer: React.FC = () => {
 							{createdCampResult && (
 								<div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 space-y-1 animate-fadeIn">
 									<div className="flex items-center justify-between font-bold">
-										<span>✓ تم إنشاء الحملة بنجاح</span>
+										<span>{cmsT("cms_405")}</span>
 										<span className="font-mono">ID: {createdCampResult.campaign?.id}</span>
 									</div>
-									<p>تم إدراج الحملة ضمن الحملات النشطة وإضافتها إلى لوحة تحكم المتجر.</p>
+									<p>{cmsT("cms_406")}</p>
 								</div>
 							)}
 						</div>
@@ -1099,7 +1114,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 											<Users className="w-4 h-4 text-blue-700" />
 										</div>
 										<h3 className="font-serif text-base font-bold text-[#2C2014]">
-											أداة مزامنة العملاء (`sync_leads`)
+											
+											{cmsT("cms_407")}
 										</h3>
 									</div>
 									<span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-mono font-bold">
@@ -1107,20 +1123,21 @@ export const MetaAdsMcpServer: React.FC = () => {
 									</span>
 								</div>
 								<p className="text-xs text-stone-500 leading-relaxed">
-									سحب استمارات ونماذج العملاء المحتملين (Instant Forms) من حملات فيسبوك وإنستغرام ونقلها مباشرة إلى جدول المبيعات
+									
+									{cmsT("cms_408")}
 								</p>
 
 								<div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2 text-xs">
 									<div className="flex items-center justify-between">
-										<span className="text-stone-600">إجمالي العملاء في النظام:</span>
+										<span className="text-stone-600">{cmsT("cms_409")}</span>
 										<span className="font-bold text-stone-900 font-mono text-sm">
-											{marketingLeads.length} عميل
+											{marketingLeads.length}  {cmsT("cms_60")}
 										</span>
 									</div>
 									<div className="flex items-center justify-between">
-										<span className="text-stone-600">القيمة التقديرية المتوقعة:</span>
+										<span className="text-stone-600">{cmsT("cms_410")}</span>
 										<span className="font-bold text-emerald-700 font-mono">
-											{marketingLeads.reduce((acc, l) => acc + (l.totalEstimatedValueAED || 0), 0).toLocaleString()} درهم
+											{marketingLeads.reduce((acc, l) => acc + (l.totalEstimatedValueAED || 0), 0).toLocaleString()}  {cmsT("cms_411")}
 										</span>
 									</div>
 								</div>
@@ -1132,14 +1149,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 									className="w-full py-3 bg-[#1877F2] hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow"
 								>
 									<Users className="w-4 h-4 text-white" />
-									<span>سحب عميل تجريبي فوري من Meta Lead Form</span>
+									<span>{cmsT("cms_412")}</span>
 								</button>
 
 								<button
 									onClick={() => setCmsTab("leads")}
 									className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
 								>
-									<span>الانتقال إلى جدول "العملاء المحتملين" في المتجر</span>
+									<span>{cmsT("cms_413")}</span>
 									<ArrowRight className="w-3.5 h-3.5 rotate-180" />
 								</button>
 							</div>
@@ -1155,10 +1172,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 								</div>
 								<div className="space-y-1">
 									<h2 className="font-serif text-lg font-bold text-[#2C2014]">
-										تشغيل أوامر Meta Ads MCP Server التفاعلية
+										
+										{cmsT("cms_414")}
 									</h2>
 									<p className="text-xs text-stone-500">
-										انقر على أي أمر من أوامر الدليل الرسمي أدناه، أو اكتب أمرك المخصص لتشغيله عبر بروتوكول MCP مباشرة
+										
+										{cmsT("cms_415")}
 									</p>
 								</div>
 							</div>
@@ -1167,25 +1186,26 @@ export const MetaAdsMcpServer: React.FC = () => {
 						{/* Quick Official Prompt Buttons */}
 						<div className="space-y-2">
 							<span className="font-bold text-stone-700 text-xs block">
-								الأوامر الأربعة الرسمية من توثيق Meta (Click to Run):
+								
+								{cmsT("cms_416")}
 							</span>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
 								{[
 									{
 										label: "1. List my ad accounts.",
-										desc: "جلب وتدقيق قائمة الحسابات الإعلانية الحقيقية من Meta",
+										desc: cmsT("cms_417"),
 									},
 									{
 										label: `Create a new traffic campaign in ad account ${adAccountId || "<AD_ACCOUNT_ID>"}.`,
-										desc: "إنشاء وتفعيل حملة زيارات جديدة للمتجر",
+										desc: cmsT("cms_418"),
 									},
 									{
 										label: "Draft an ad set for my campaign that optimizes for link clicks.",
-										desc: "صياغة مجموعة إعلانية مستهدفة للنقرات والزيارات",
+										desc: cmsT("cms_419"),
 									},
 									{
 										label: `Summarize the top-spending campaigns in ${adAccountId || "<AD_ACCOUNT_ID>"} over the last 30 days.`,
-										desc: "ملخص تحليلي للحملات الأعلى إنفاقاً ومردوداً",
+										desc: cmsT("cms_420"),
 									},
 								].map((item, idx) => (
 									<button
@@ -1220,7 +1240,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 									onKeyDown={(e) => {
 										if (e.key === "Enter") handleRunPrompt();
 									}}
-									placeholder="اكتب أمر MCP هنا (مثال: أطلق حملة لفقع الزبيدي للمجالس في أبوظبي بدخل 250 درهم)..."
+									placeholder={cmsT("cms_421")}
 									className="flex-1 p-3 border border-stone-300 rounded-xl text-xs focus:outline-none focus:border-amber-800 bg-stone-50 focus:bg-white"
 								/>
 								<button
@@ -1231,12 +1251,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 									{isExecuting ? (
 										<>
 											<RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
-											<span>جارِ التنفيذ...</span>
+											<span>{cmsT("cms_422")}</span>
 										</>
 									) : (
 										<>
 											<Play className="w-4 h-4 text-amber-400" />
-											<span>تشغيل الأمر</span>
+											<span>{cmsT("cms_423")}</span>
 										</>
 									)}
 								</button>
@@ -1250,7 +1270,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 									<div className="flex items-center gap-2">
 										<Terminal className="w-4 h-4 text-emerald-700" />
 										<span className="font-bold text-stone-800">
-											استجابة خادم Meta Ads MCP Server المباشرة:
+											
+											{cmsT("cms_424")}
 										</span>
 										{executionTrace?.latencyMs && (
 											<span className="font-mono text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
@@ -1263,7 +1284,7 @@ export const MetaAdsMcpServer: React.FC = () => {
 										className="text-[11px] text-stone-500 hover:text-black flex items-center gap-1"
 									>
 										<Copy className="w-3 h-3" />
-										<span>نسخ النتيجة</span>
+										<span>{cmsT("cms_425")}</span>
 									</button>
 								</div>
 
@@ -1288,10 +1309,11 @@ export const MetaAdsMcpServer: React.FC = () => {
 					<div className="bg-amber-50/80 p-5 rounded-2xl border border-amber-300 text-xs text-amber-950 leading-relaxed space-y-2">
 						<div className="flex items-center gap-2 font-bold text-amber-900 text-sm">
 							<Info className="w-4 h-4 text-amber-700 shrink-0" />
-							<span>ملاحظة البدء بدون الحاجة لتطبيق Meta للمطورين:</span>
+							<span>{cmsT("cms_426")}</span>
 						</div>
 						<p>
-							امتلاك تطبيق مطورين (Meta App) ليس شرطاً أساسياً لاستخدام خادم ads MCP server. للوصول المباشر بدون تطبيق مطورين، يرجى اتباع الدليل الرسمي:{" "}
+							
+							{cmsT("cms_427")}{" "}
 							<a
 								href="https://www.facebook.com/business/help/1456422242197840"
 								target="_blank"
@@ -1304,7 +1326,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 							.
 						</p>
 						<p className="text-[11px] text-stone-600">
-							لاستخدام ads MCP server مع تطبيق Meta الخاص بك، اتبع الخطوات الأساسية أدناه لتهيئة بيئة العمل والوصول.
+							
+							{cmsT("cms_428")}
 						</p>
 					</div>
 
@@ -1312,14 +1335,17 @@ export const MetaAdsMcpServer: React.FC = () => {
 					<div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#E8DCCB] shadow-sm space-y-4">
 						<div className="flex items-start gap-3">
 							<div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 font-bold flex items-center justify-center shrink-0 text-sm border border-amber-500/30">
-								١
+								
+								{cmsT("cms_429")}
 							</div>
 							<div className="space-y-1">
 								<h2 className="font-serif text-lg font-bold text-[#2C2014]">
-									Create or reuse a Meta developer app (إنشاء تطبيق المطورين)
+									
+									{cmsT("cms_430")}
 								</h2>
 								<p className="text-xs text-stone-500">
-									إعداد التطبيق في بوابة المطورين وتفعيل حالة الاستخدام المعتمدة
+									
+									{cmsT("cms_431")}
 								</p>
 							</div>
 						</div>
@@ -1330,7 +1356,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 									1
 								</span>
 								<p className="text-stone-700">
-									انتقل إلى بوابة المطورين:{" "}
+									
+									{cmsT("cms_432")}{" "}
 									<a
 										href="https://developers.facebook.com/apps"
 										target="_blank"
@@ -1340,7 +1367,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 										<span>developers.facebook.com/apps</span>
 										<ExternalLink className="w-3 h-3 text-blue-600" />
 									</a>{" "}
-									وقم بإنشاء تطبيق جديد، أو افتح تطبيقك الحالي.
+									
+									{cmsT("cms_433")}
 								</p>
 							</div>
 
@@ -1349,7 +1377,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 									2
 								</span>
 								<p className="text-stone-700">
-									أضف حالة الاستخدام الرسمية:{" "}
+									
+									{cmsT("cms_434")}{" "}
 									<strong className="text-stone-900 bg-white px-2 py-0.5 rounded border border-stone-300 font-mono">
 										Create & manage ads with ads MCP server
 									</strong>
@@ -1362,14 +1391,17 @@ export const MetaAdsMcpServer: React.FC = () => {
 					<div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#E8DCCB] shadow-sm space-y-5">
 						<div className="flex items-start gap-3">
 							<div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 font-bold flex items-center justify-center shrink-0 text-sm border border-amber-500/30">
-								٢
+								
+								{cmsT("cms_435")}
 							</div>
 							<div className="space-y-1">
 								<h2 className="font-serif text-lg font-bold text-[#2C2014]">
-									Authentication (طرق المصادقة المدعومة)
+									
+									{cmsT("cms_436")}
 								</h2>
 								<p className="text-xs text-stone-500">
-									يدعم خادم ads MCP server ثلاثة خيارات موثقة للمصادقة وتوليد الصلاحيات
+									
+									{cmsT("cms_437")}
 								</p>
 							</div>
 						</div>
@@ -1406,7 +1438,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 										: "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
 								}`}
 							>
-								System user access token (خادم إلى خادم)
+								
+								{cmsT("cms_438")}
 							</button>
 						</div>
 
@@ -1416,10 +1449,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2">
 									<h3 className="font-bold text-stone-900 text-sm">OAuth Flow</h3>
 									<p className="text-stone-600">
-										يقوم عميل الـ MCP بتوجيهك إلى نافذة <strong>Facebook Login for Business</strong>. تسجل الدخول بحسابك في فيسبوك أو حسابك المدار من Meta (MMA) وتوافق على الصلاحيات المطلوبة دون الحاجة لإعداد يدوي للرمز المميز.
+										
+										{cmsT("cms_439")} <strong>Facebook Login for Business</strong>{cmsT("cms_440")}
 									</p>
 									<div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px]">
-										تأكد من ضبط <strong>Redirect URL</strong> لتطبيق المطورين الخاص بك بما يتوافق مع عميل MCP في إعدادات{" "}
+										
+										{cmsT("cms_441")} <strong>Redirect URL</strong>  {cmsT("cms_442")}{" "}
 										<a
 											href="https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business"
 											target="_blank"
@@ -1437,7 +1472,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2">
 									<h3 className="font-bold text-stone-900 text-sm">User Access Token</h3>
 									<p className="text-stone-600">
-										لتوليد رمز وصول المستخدم (User Access Token)، استخدم أداة{" "}
+										
+										{cmsT("cms_443")}{" "}
 										<a
 											href={graphExplorerUrl}
 											target="_blank"
@@ -1446,7 +1482,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 										>
 											Graph API Explorer
 										</a>{" "}
-										أو مسار الـ OAuth الخاص بك، مع طلب الصلاحيات الموضحة أدناه.
+										
+										{cmsT("cms_444")}
 									</p>
 								</div>
 							)}
@@ -1455,10 +1492,11 @@ export const MetaAdsMcpServer: React.FC = () => {
 								<div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2">
 									<h3 className="font-bold text-stone-900 text-sm">System User Access Token</h3>
 									<p className="text-stone-600">
-										يمكنك استخدام رمز مستخدم النظام للإعدادات البرمجية أو الاتصال بين الخوادم (Server-to-Server).
+										
+										{cmsT("cms_445")}
 									</p>
 									<div className="p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-800 text-[11px]">
-										<strong>ملاحظة هامة (Note):</strong> يتم دعم رموز وصول مستخدم النظام بدور <strong>Employee</strong> فقط. رموز المستخدمين بدور Admin غير مدعومة للاتصال بـ ads MCP server.
+										<strong>{cmsT("cms_446")}</strong>  {cmsT("cms_447")} <strong>Employee</strong>  {cmsT("cms_448")}
 									</div>
 								</div>
 							)}
@@ -1467,13 +1505,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 							<div className="space-y-3 pt-2">
 								<h4 className="font-bold text-stone-900 text-xs flex items-center gap-1.5">
 									<ShieldCheck className="w-4 h-4 text-emerald-600" />
-									<span>Permissions (الصلاحيات المطلوبة للمفتاح):</span>
+									<span>{cmsT("cms_449")}</span>
 								</h4>
 
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 									<div className="p-3.5 rounded-xl bg-white border border-stone-200 space-y-2">
 										<span className="text-[11px] font-bold text-stone-800 block">
-											الحد الأدنى الإلزامي (At a minimum):
+											
+											{cmsT("cms_450")}
 										</span>
 										<div className="space-y-1 font-mono text-[11px]" dir="ltr">
 											<div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
@@ -1489,7 +1528,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 
 									<div className="p-3.5 rounded-xl bg-white border border-stone-200 space-y-2">
 										<span className="text-[11px] font-bold text-stone-800 block">
-											صلاحيات إضافية للأدوات الموسعة (Additional permissions):
+											
+											{cmsT("cms_451")}
 										</span>
 										<div className="grid grid-cols-2 gap-1 font-mono text-[11px]" dir="ltr">
 											<span className="text-blue-900">• ads_management</span>
@@ -1508,14 +1548,17 @@ export const MetaAdsMcpServer: React.FC = () => {
 					<div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#E8DCCB] shadow-sm space-y-5">
 						<div className="flex items-start gap-3">
 							<div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 font-bold flex items-center justify-center shrink-0 text-sm border border-amber-500/30">
-								٣
+								
+								{cmsT("cms_452")}
 							</div>
 							<div className="space-y-1">
 								<h2 className="font-serif text-lg font-bold text-[#2C2014]">
-									Connect to ads MCP server (الربط المباشر مع العملاء)
+									
+									{cmsT("cms_453")}
 								</h2>
 								<p className="text-xs text-stone-500">
-									عنوان الخادم الرسمي: <code className="font-mono bg-stone-100 text-stone-800 px-2 py-0.5 rounded text-[11px]" dir="ltr">https://mcp.facebook.com/ads</code>
+									
+									{cmsT("cms_454")} <code className="font-mono bg-stone-100 text-stone-800 px-2 py-0.5 rounded text-[11px]" dir="ltr">https://mcp.facebook.com/ads</code>
 								</p>
 							</div>
 						</div>
@@ -1559,7 +1602,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 							{activeClientTab === "claude" && (
 								<div className="space-y-3">
 									<p className="text-stone-600">
-										لإضافة ads MCP server إلى{" "}
+										
+										{cmsT("cms_455")}{" "}
 										<a
 											href="https://code.claude.com/docs/en/mcp#configure-mcp-servers"
 											target="_blank"
@@ -1568,7 +1612,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 										>
 											Claude Code
 										</a>
-										، قم بتشغيل الأمر أدناه في الطرفية (Terminal):
+										
+										{cmsT("cms_456")}
 									</p>
 
 									<div className="relative bg-[#1E1E1E] text-stone-100 p-4 rounded-2xl font-mono text-xs overflow-x-auto" dir="ltr">
@@ -1576,14 +1621,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 										<button
 											onClick={() => copyToClipboard(claudeCommand, "Claude Code Command")}
 											className="absolute top-3 right-3 p-1.5 bg-white/10 hover:bg-white/20 text-stone-200 rounded-lg flex items-center gap-1 text-[11px]"
-											title="نسخ الأمر"
+											title={cmsT("cms_223")}
 										>
 											{copiedText === "Claude Code Command" ? (
 												<Check className="w-3.5 h-3.5 text-emerald-400" />
 											) : (
 												<Copy className="w-3.5 h-3.5" />
 											)}
-											<span>{copiedText === "Claude Code Command" ? "تم النسخ" : "نسخ"}</span>
+											<span>{copiedText === "Claude Code Command" ? cmsT("cms_108") : cmsT("cms_150")}</span>
 										</button>
 									</div>
 								</div>
@@ -1593,7 +1638,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 							{activeClientTab === "chatgpt" && (
 								<div className="space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-200">
 									<p className="text-stone-700">
-										قم بضبط الـ redirect URL لتطبيق Meta developer app طبقاً لمواصفات{" "}
+										
+										{cmsT("cms_457")}{" "}
 										<a
 											href="https://developers.openai.com/api/docs/actions/authentication"
 											target="_blank"
@@ -1606,15 +1652,18 @@ export const MetaAdsMcpServer: React.FC = () => {
 									</p>
 									<div className="space-y-2 pt-2 border-t border-stone-200">
 										<p className="font-bold text-stone-900">
-											تعليمات إعداد ChatGPT (Developer Mode):
+											
+											{cmsT("cms_458")}
 										</p>
 										<ul className="list-disc list-inside space-y-1 text-stone-600">
-											<li>اختر <strong>"OAuth"</strong> كطريقة للمصادقة (Authentication method).</li>
+											<li>{cmsT("cms_459")} <strong>"OAuth"</strong>  {cmsT("cms_460")}</li>
 											<li>
-												أدخل <code className="bg-white px-2 py-0.5 rounded font-mono" dir="ltr">https://mcp.facebook.com/ads</code> كـ Server URL.
+												
+												{cmsT("cms_461")} <code className="bg-white px-2 py-0.5 rounded font-mono" dir="ltr">https://mcp.facebook.com/ads</code>  Server URL.
 											</li>
 											<li>
-												في <strong>Advanced OAuth Settings</strong>، أدخل معرف تطبيقك (Meta developer app ID) كـ OAuth Client ID.
+												
+												{cmsT("cms_462")} <strong>Advanced OAuth Settings</strong>{cmsT("cms_463")}
 											</li>
 										</ul>
 									</div>
@@ -1625,7 +1674,8 @@ export const MetaAdsMcpServer: React.FC = () => {
 							{activeClientTab === "curl" && (
 								<div className="space-y-3">
 									<p className="text-stone-600">
-										للإعدادات البرمجية المباشرة، مرر User Access Token في ترويسة الطلب <code className="font-mono bg-stone-100 px-1 py-0.5 rounded" dir="ltr">Authorization: Bearer &lt;ACCESS_TOKEN&gt;</code>:
+										
+										{cmsT("cms_464")} <code className="font-mono bg-stone-100 px-1 py-0.5 rounded" dir="ltr">Authorization: Bearer &lt;ACCESS_TOKEN&gt;</code>:
 									</p>
 
 									<div className="relative bg-[#1E1E1E] text-stone-100 p-4 rounded-2xl font-mono text-xs overflow-x-auto" dir="ltr">
@@ -1633,14 +1683,14 @@ export const MetaAdsMcpServer: React.FC = () => {
 										<button
 											onClick={() => copyToClipboard(curlCommand, "cURL Command")}
 											className="absolute top-3 right-3 p-1.5 bg-white/10 hover:bg-white/20 text-stone-200 rounded-lg flex items-center gap-1 text-[11px]"
-											title="نسخ الأمر"
+											title={cmsT("cms_223")}
 										>
 											{copiedText === "cURL Command" ? (
 												<Check className="w-3.5 h-3.5 text-emerald-400" />
 											) : (
 												<Copy className="w-3.5 h-3.5" />
 											)}
-											<span>{copiedText === "cURL Command" ? "تم النسخ" : "نسخ"}</span>
+											<span>{copiedText === "cURL Command" ? cmsT("cms_108") : cmsT("cms_150")}</span>
 										</button>
 									</div>
 								</div>
@@ -1662,10 +1712,12 @@ export const MetaAdsMcpServer: React.FC = () => {
 							</div>
 							<div>
 								<h2 className="font-serif text-base font-bold text-[#2C2014]">
-									موجّه بروتوكول JSON-RPC 2.0 المباشر (Direct MCP Bridge)
+									
+									{cmsT("cms_465")}
 								</h2>
 								<p className="text-xs text-stone-500">
-									يمكن لأي عميل MCP خارجي (مثل Claude Code أو Cursor أو ChatGPT) إرسال استعلامات JSON-RPC مباشرة إلى مسار المتجر: <code className="font-mono bg-stone-100 text-stone-900 px-1.5 py-0.5 rounded" dir="ltr">/api/meta/mcp</code>
+									
+									{cmsT("cms_466")} <code className="font-mono bg-stone-100 text-stone-900 px-1.5 py-0.5 rounded" dir="ltr">/api/meta/mcp</code>
 								</p>
 							</div>
 						</div>

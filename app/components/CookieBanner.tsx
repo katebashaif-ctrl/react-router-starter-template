@@ -1,6 +1,7 @@
 import React from "react";
 import { useStore } from "../context/StoreContext";
 import { Cookie } from "lucide-react";
+import { t } from "../frontend/locales/i18n";
 
 export const CookieBanner: React.FC = () => {
 	const { cookieConsent, setCookieConsent, openPrivacyPolicy } = useStore();
@@ -16,28 +17,23 @@ export const CookieBanner: React.FC = () => {
 					</div>
 					<div className="space-y-1 flex-1">
 						<h4 className="text-xs font-bold text-white flex items-center gap-1.5 font-mono">
-							<span>ملفات تعريف الارتباط والخصوصية</span>
-							<span className="text-[10px] text-[#f0c38e] font-normal">
-								(مرسوم اتحادي رقم 45)
-							</span>
+							<span>{t("cookies.title")}</span>
 						</h4>
 						<p className="text-[11px] text-stone-400 leading-relaxed">
-							نستخدم ملفات تعريف الارتباط وتحليلات Meta Facebook Ads لتحسين تجربة تصفح المحاصيل
-							وتقديم عروض موثوقة. يمكنك الاطلاع على{" "}
+							{t("cookies.desc")}{" "}
 							<button
 								onClick={() => openPrivacyPolicy("privacy")}
 								className="text-[#f0c38e] underline underline-offset-2 hover:text-white"
 							>
-								سياسة الخصوصية
+								{t("footer.privacyPolicy")}
 							</button>{" "}
-							و{" "}
+							&amp;{" "}
 							<button
 								onClick={() => openPrivacyPolicy("terms")}
 								className="text-[#f0c38e] underline underline-offset-2 hover:text-white"
 							>
-								شروط الاستخدام
+								{t("footer.termsOfService")}
 							</button>
-							.
 						</p>
 					</div>
 				</div>
@@ -47,21 +43,21 @@ export const CookieBanner: React.FC = () => {
 						onClick={() => openPrivacyPolicy("cookies")}
 						className="px-3 py-1.5 text-[11px] text-stone-400 hover:text-white font-mono"
 					>
-						تخصيص الخيارات
+						{t("cookies.customize")}
 					</button>
 
 					<button
 						onClick={() => setCookieConsent("rejected")}
 						className="px-3 py-1.5 bg-[#121212] hover:bg-white/10 text-stone-300 text-xs font-medium rounded-lg transition-colors border border-white/10"
 					>
-						الضرورية فقط
+						{t("cookies.reject")}
 					</button>
 
 					<button
 						onClick={() => setCookieConsent("accepted")}
 						className="px-4 py-1.5 bg-[#f0c38e] hover:bg-white text-[#121212] text-xs font-bold rounded-lg transition-colors shadow-sm font-mono"
 					>
-						الموافقة والمتابعة
+						{t("cookies.accept")}
 					</button>
 				</div>
 			</div>

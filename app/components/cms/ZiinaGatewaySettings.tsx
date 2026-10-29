@@ -1,3 +1,4 @@
+import { cmsT, cmsFormat } from "../../frontend/locales/cmsI18n";
 import React, { useState } from "react";
 import { useStore } from "../../context/StoreContext";
 import {
@@ -42,7 +43,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 			navigator.clipboard.writeText(webhookUrl);
 			setCopiedWebhook(true);
 			setTimeout(() => setCopiedWebhook(false), 2500);
-			showToast("تم النسخ", "تم نسخ رابط Webhook إلى الحافظة");
+			showToast(cmsT("cms_108"), cmsT("cms_109"));
 		}
 	};
 
@@ -56,7 +57,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 			ziinaEnabled: true,
 		});
 		setIsSaving(false);
-		showToast("تم الحفظ", "تم حفظ إعدادات بوابة الدفع Ziina بنجاح.");
+		showToast(cmsT("cms_110"), cmsT("cms_111"));
 	};
 
 	const handleRunTestPing = async () => {
@@ -71,7 +72,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 					orderNumber: `TEST-${Math.floor(1000 + Math.random() * 9000)}`,
 					amount: 15, // 15 AED test
 					currency: "AED",
-					customerName: "فحص بوابة Ziina",
+					customerName: cmsT("cms_112"),
 					customerPhone: "+971500000000",
 					apiToken: apiToken.trim() || undefined,
 					testMode,
@@ -80,9 +81,9 @@ export const ZiinaGatewaySettings: React.FC = () => {
 			const data = await res.json();
 			setTestResult(data);
 			if (data.success) {
-				showToast("نجاح الفحص", data.message || "تم إنشاء جلسة دفع Ziina بنجاح");
+				showToast(cmsT("cms_113"), data.message || cmsT("cms_114"));
 			} else {
-				showToast("تنبيه الفحص", data.error || "فشل الاتصال ببوابة Ziina", "warning");
+				showToast(cmsT("cms_115"), data.error || cmsT("cms_116"), "warning");
 			}
 		} catch (err) {
 			setTestResult({
@@ -111,14 +112,17 @@ export const ZiinaGatewaySettings: React.FC = () => {
 							<Zap className="w-4 h-4 text-amber-400" />
 						</span>
 						<span className="text-xs font-bold uppercase tracking-wider text-amber-300">
-							بوابة الدفع الإلكتروني المعتمدة (Payment Gateway)
+							
+							{cmsT("cms_117")}
 						</span>
 					</div>
 					<h3 className="font-serif text-2xl font-bold text-amber-100">
-						ربط بوابة Ziina (Apple Pay · فيزا · ماستركارد)
+						
+						{cmsT("cms_118")}
 					</h3>
 					<p className="text-xs text-stone-300 leading-relaxed">
-						تتيح بوابة Ziina لعملاء متجر خيرات الدار إتمام سداد قيمة المحاصيل التراثية فورياً عبر الهواتف والبطاقات البنكية المعتمدة في دولة الإمارات مع إيداع مباشر وأعلى معايير التشفير المصرفي.
+						
+						{cmsT("cms_119")}
 					</p>
 
 					<div className="flex flex-wrap items-center gap-3 pt-2">
@@ -128,7 +132,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 							rel="noreferrer"
 							className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-lg text-xs font-bold transition-colors shadow-sm"
 						>
-							<span>توثيق المطورين (Ziina Custom Integration Docs)</span>
+							<span>{cmsT("cms_120")}</span>
 							<ExternalLink className="w-3.5 h-3.5" />
 						</a>
 						<a
@@ -137,7 +141,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 							rel="noreferrer"
 							className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-stone-200 rounded-lg text-xs font-medium transition-colors"
 						>
-							<span>لوحة تحكم التاجر (Ziina Dashboard)</span>
+							<span>{cmsT("cms_121")}</span>
 							<ArrowUpRight className="w-3.5 h-3.5" />
 						</a>
 					</div>
@@ -147,40 +151,41 @@ export const ZiinaGatewaySettings: React.FC = () => {
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-1">
-					<p className="text-xs font-medium text-stone-500">حالة بوابة الدفع</p>
+					<p className="text-xs font-medium text-stone-500">{cmsT("cms_122")}</p>
 					<div className="flex items-center gap-2 pt-1">
 						<span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
 						<span className="font-bold text-sm text-stone-900">
-							{apiToken ? (testMode ? "وضع التجربة (Sandbox)" : "مباشر بالإنتاج (Live)") : "جلسات تجريبية نشطة"}
+							{apiToken ? (testMode ? cmsT("cms_123") : cmsT("cms_124")) : cmsT("cms_125")}
 						</span>
 					</div>
 					<p className="text-[11px] text-stone-400">
-						{apiToken ? "مفتاح API مربوط ومضبوط" : "يمكن للعملاء فحص الدفع التجريبي"}
+						{apiToken ? cmsT("cms_126") : cmsT("cms_127")}
 					</p>
 				</div>
 
 				<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-1">
-					<p className="text-xs font-medium text-stone-500">الطلبات المسددة عبر Ziina</p>
+					<p className="text-xs font-medium text-stone-500">{cmsT("cms_128")}</p>
 					<div className="flex items-baseline gap-1.5">
 						<span className="font-serif text-2xl font-bold text-emerald-800 tabular-nums">
 							{paidZiinaOrders.length}
 						</span>
-						<span className="text-xs text-stone-400">من أصل {ziinaOrders.length}</span>
+						<span className="text-xs text-stone-400">{cmsT("cms_129")} {ziinaOrders.length}</span>
 					</div>
 					<p className="text-[11px] text-emerald-700 font-medium">
-						نسبة التحويل {ziinaOrders.length > 0 ? Math.round((paidZiinaOrders.length / ziinaOrders.length) * 100) : 100}%
+						
+						{cmsT("cms_130")} {ziinaOrders.length > 0 ? Math.round((paidZiinaOrders.length / ziinaOrders.length) * 100) : 100}%
 					</p>
 				</div>
 
 				<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-1">
-					<p className="text-xs font-medium text-stone-500">المبالغ المحصلة إلكترونياً</p>
+					<p className="text-xs font-medium text-stone-500">{cmsT("cms_131")}</p>
 					<div className="flex items-baseline gap-1.5">
 						<span className="font-serif text-2xl font-bold text-amber-900 tabular-nums">
 							{totalPaidZiina}
 						</span>
-						<span className="text-xs font-bold text-[#8B5A2B]">د.إ AED</span>
+						<span className="text-xs font-bold text-[#8B5A2B]">{cmsT("cms_32")}</span>
 					</div>
-					<p className="text-[11px] text-stone-400">تحويل مباشر لحساب التاجر المصرفي</p>
+					<p className="text-[11px] text-stone-400">{cmsT("cms_132")}</p>
 				</div>
 			</div>
 
@@ -191,36 +196,40 @@ export const ZiinaGatewaySettings: React.FC = () => {
 					<div className="flex items-center gap-2 pb-2 border-b border-stone-200">
 						<Key className="w-4 h-4 text-amber-800" />
 						<h4 className="font-serif text-base font-bold text-[#2C2014]">
-							مفاتيح وإعدادات بوابة Ziina
+							
+							{cmsT("cms_133")}
 						</h4>
 					</div>
 
 					<form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
 						<div>
 							<label className="block text-stone-700 font-semibold mb-1">
-								رمز الوصول السري (Ziina API Access Token / Bearer Token):
+								
+								{cmsT("cms_134")}
 							</label>
 							<div className="relative">
 								<input
 									type="password"
 									value={apiToken}
 									onChange={(e) => setApiToken(e.target.value)}
-									placeholder="الصق رمز Ziina Bearer Token هنا..."
+									placeholder={cmsT("cms_135")}
 									className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg font-mono text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none"
 									dir="ltr"
 								/>
 							</div>
 							<p className="text-[10px] text-stone-400 mt-1">
-								احصل عليه من لوحة تحكم Ziina &gt; Settings &gt; Developer API Keys (مع صلاحية <code>write_payment_intents</code>).
+								
+								{cmsT("cms_136")} <code>write_payment_intents</code>).
 							</p>
 						</div>
 
 						{/* Test Mode Switch */}
 						<div className="flex items-center justify-between p-3 rounded-xl bg-stone-50 border border-stone-200">
 							<div>
-								<p className="font-bold text-stone-800">بيئة التجربة (Test / Sandbox Mode):</p>
+								<p className="font-bold text-stone-800">{cmsT("cms_137")}</p>
 								<p className="text-[10px] text-stone-500">
-									عند التفعيل، تُرسل المعاملات بعلم <code>test: true</code> بدون خصم مالي حقيقي من بطاقات العملاء.
+									
+									{cmsT("cms_138")} <code>test: true</code>  {cmsT("cms_139")}
 								</p>
 							</div>
 							<button
@@ -238,13 +247,14 @@ export const ZiinaGatewaySettings: React.FC = () => {
 
 						<div>
 							<label className="block text-stone-700 font-semibold mb-1">
-								مفتاح توثيق الويب هوك السري (Webhook Secret - اختياري):
+								
+								{cmsT("cms_140")}
 							</label>
 							<input
 								type="password"
 								value={webhookSecret}
 								onChange={(e) => setWebhookSecret(e.target.value)}
-								placeholder="Client Secret للتحقق من HMAC Signature..."
+								placeholder={cmsT("cms_141")}
 								className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg font-mono text-xs focus:ring-1 focus:ring-amber-500 focus:outline-none"
 								dir="ltr"
 							/>
@@ -257,7 +267,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 								className="px-5 py-2.5 bg-[#2C2014] hover:bg-black text-amber-200 text-xs font-bold rounded-xl transition-colors shadow flex items-center gap-1.5"
 							>
 								<Check className="w-4 h-4" />
-								<span>{isSaving ? "جاري الحفظ..." : "حفظ إعدادات Ziina"}</span>
+								<span>{isSaving ? cmsT("cms_142") : cmsT("cms_143")}</span>
 							</button>
 
 							<button
@@ -267,7 +277,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 								className="px-4 py-2 border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5"
 							>
 								<RefreshCw className={`w-3.5 h-3.5 ${isTesting ? "animate-spin text-amber-800" : ""}`} />
-								<span>{isTesting ? "جاري الفحص..." : "فحص الاتصال والإنشاء"}</span>
+								<span>{isTesting ? cmsT("cms_144") : cmsT("cms_145")}</span>
 							</button>
 						</div>
 					</form>
@@ -278,17 +288,20 @@ export const ZiinaGatewaySettings: React.FC = () => {
 					<div className="flex items-center gap-2 pb-2 border-b border-stone-200">
 						<ShieldCheck className="w-4 h-4 text-emerald-700" />
 						<h4 className="font-serif text-base font-bold text-[#2C2014]">
-							رابط الاستماع للأحداث (Webhook URL)
+							
+							{cmsT("cms_146")}
 						</h4>
 					</div>
 
 					<p className="text-xs text-stone-500 leading-relaxed">
-						لتحديث حالة الطلبات تلقائياً عند اكتمال الدفع من قبل العميل، قم بنسخ الرابط التالي وإضافته في حسابك لدى Ziina:
+						
+						{cmsT("cms_147")}
 					</p>
 
 					<div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
 						<label className="block text-[11px] font-bold text-stone-700">
-							عنوان الـ Webhook الخاص بمتجرك:
+							
+							{cmsT("cms_148")}
 						</label>
 						<div className="flex items-center gap-2">
 							<input
@@ -302,26 +315,26 @@ export const ZiinaGatewaySettings: React.FC = () => {
 								type="button"
 								onClick={copyWebhook}
 								className="px-3 py-2 bg-[#2C2014] hover:bg-black text-amber-200 rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1"
-								title="نسخ الرابط"
+								title={cmsT("cms_149")}
 							>
 								{copiedWebhook ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-								<span>{copiedWebhook ? "تم النسخ" : "نسخ"}</span>
+								<span>{copiedWebhook ? cmsT("cms_108") : cmsT("cms_150")}</span>
 							</button>
 						</div>
 						<div className="flex items-center gap-1.5 text-[10px] text-stone-500">
 							<span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-							<span>الحدث المدعوم: <code>payment_intent.status.updated</code></span>
+							<span>{cmsT("cms_151")} <code>payment_intent.status.updated</code></span>
 						</div>
 					</div>
 
 					{/* Step by step guide */}
 					<div className="space-y-2 text-xs text-stone-600 bg-[#FAF7F2] p-3.5 rounded-xl border border-[#E8DCCB]">
-						<p className="font-bold text-[#2C2014]">خطوات التفعيل في منصة Ziina:</p>
+						<p className="font-bold text-[#2C2014]">{cmsT("cms_152")}</p>
 						<ol className="list-decimal list-inside space-y-1 text-[11px] text-stone-600">
-							<li>سجل دخولك إلى لوحة تحكم Ziina للأعمال.</li>
-							<li>توجه إلى قائمة <strong>Settings &gt; Developers</strong>.</li>
-							<li>أنشئ <strong>Access Token</strong> وانسخه إلى الحقل أعلاه.</li>
-							<li>أضف عنوان الـ Webhook الموضح أعلاه لاستلام إشعارات السداد اللحظية.</li>
+							<li>{cmsT("cms_153")}</li>
+							<li>{cmsT("cms_154")} <strong>Settings &gt; Developers</strong>.</li>
+							<li>{cmsT("cms_155")} <strong>Access Token</strong>  {cmsT("cms_156")}</li>
+							<li>{cmsT("cms_157")}</li>
 						</ol>
 					</div>
 
@@ -341,10 +354,10 @@ export const ZiinaGatewaySettings: React.FC = () => {
 									) : (
 										<AlertCircle className="w-4 h-4 text-rose-600" />
 									)}
-									<span>نتيجة فحص جلسة الدفع:</span>
+									<span>{cmsT("cms_158")}</span>
 								</span>
 								<span className="text-[10px] uppercase font-mono">
-									{testResult.isLiveGateway ? "بوابة Ziina الرسمية" : "جلسة تجريبية (Sandbox)"}
+									{testResult.isLiveGateway ? cmsT("cms_159") : cmsT("cms_160")}
 								</span>
 							</div>
 
@@ -361,7 +374,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 										rel="noreferrer"
 										className="px-2.5 py-1 bg-[#2C2014] text-amber-200 rounded text-[11px] font-bold flex items-center gap-1 hover:bg-black transition-colors"
 									>
-										<span>معاينة صفحة الدفع</span>
+										<span>{cmsT("cms_161")}</span>
 										<ExternalLink className="w-3 h-3" />
 									</a>
 								</div>
@@ -377,20 +390,23 @@ export const ZiinaGatewaySettings: React.FC = () => {
 					<div className="flex items-center gap-2">
 						<Receipt className="w-4 h-4 text-amber-800" />
 						<h4 className="font-serif text-base font-bold text-[#2C2014]">
-							سجل عمليات دفع Ziina الأخيرة ({ziinaOrders.length})
+							
+							{cmsT("cms_162")}{ziinaOrders.length})
 						</h4>
 					</div>
 					<span className="text-xs text-stone-400">
-						تحديث تلقائي عبر قاعدة البيانات وسحابة المتجر
+						
+						{cmsT("cms_163")}
 					</span>
 				</div>
 
 				{ziinaOrders.length === 0 ? (
 					<div className="py-8 text-center space-y-2 text-stone-400">
 						<CreditCard className="w-8 h-8 mx-auto opacity-40" />
-						<p className="text-xs">لم يتم تسجيل أي طلبات دفع عبر Ziina حتى الآن.</p>
+						<p className="text-xs">{cmsT("cms_164")}</p>
 						<p className="text-[11px] text-stone-400">
-							عند اختيار أي عميل لبوابة Ziina في السلة، ستظهر تفاصيل العملية وحالتها هنا مباشرة.
+							
+							{cmsT("cms_165")}
 						</p>
 					</div>
 				) : (
@@ -398,13 +414,13 @@ export const ZiinaGatewaySettings: React.FC = () => {
 						<table className="w-full text-right text-xs">
 							<thead className="bg-[#FAF7F2] border-b border-stone-200 text-stone-600">
 								<tr>
-									<th className="py-2.5 px-3 font-semibold">رقم الطلب</th>
-									<th className="py-2.5 px-3 font-semibold">العميل</th>
-									<th className="py-2.5 px-3 font-semibold">المبلغ</th>
-									<th className="py-2.5 px-3 font-semibold">طريقة البطاقة</th>
-									<th className="py-2.5 px-3 font-semibold">معرّف Ziina Intent</th>
-									<th className="py-2.5 px-3 font-semibold">حالة الدفع</th>
-									<th className="py-2.5 px-3 font-semibold">التاريخ</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_166")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_167")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_168")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_169")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_170")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_171")}</th>
+									<th className="py-2.5 px-3 font-semibold">{cmsT("cms_172")}</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-stone-100">
@@ -418,7 +434,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 											<p className="text-[10px] text-stone-400" dir="ltr">{ord.customerPhone}</p>
 										</td>
 										<td className="py-2.5 px-3 font-bold text-[#8B5A2B] tabular-nums">
-											{ord.total} د.إ
+											{ord.total}  {cmsT("cms_55")}
 										</td>
 										<td className="py-2.5 px-3 text-stone-600">
 											{ord.cardBrand ? `${ord.cardBrand} (•••• ${ord.cardLastFour || "4242"})` : "Apple Pay / Card"}
@@ -437,10 +453,10 @@ export const ZiinaGatewaySettings: React.FC = () => {
 												}`}
 											>
 												{ord.paymentStatus === "paid"
-													? "تم السداد ✓"
+													? cmsT("cms_173")
 													: ord.paymentStatus === "failed"
-														? "فشل السداد"
-														: "قيد السداد"}
+														? cmsT("cms_174")
+														: cmsT("cms_175")}
 											</span>
 										</td>
 										<td className="py-2.5 px-3 text-stone-400 text-[10px]" dir="ltr">

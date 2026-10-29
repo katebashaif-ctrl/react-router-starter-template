@@ -2,6 +2,7 @@ import React from "react";
 import { useStore } from "../context/StoreContext";
 import { Phone, MessageSquare, MapPin, Shield, Lock, FileText, Share2 } from "lucide-react";
 import { Logo } from "./Logo";
+import { t } from "../frontend/locales/i18n";
 
 export const Footer: React.FC = () => {
 	const {
@@ -11,9 +12,9 @@ export const Footer: React.FC = () => {
 		openPrivacyPolicy,
 	} = useStore();
 
-	const handleNav = (cat: "rutab" | "fig" | "faqa" | "boxes" | "all") => {
+	const handleNav = (cat: "rutab" | "fig" | "faqa" | "dates" | "all") => {
 		setCurrentView("store");
-		setActiveCategory(cat);
+		setActiveCategory(cat as any);
 		const el = document.getElementById("catalog-section");
 		if (el) el.scrollIntoView({ behavior: "smooth" });
 	};
@@ -26,7 +27,7 @@ export const Footer: React.FC = () => {
 					<div className="space-y-4">
 						<Logo variant="footer" />
 						<p className="text-xs text-stone-300 leading-relaxed">
-							{settings.storeTagline}. محصول طازج من مزارع ليوا — القص والتوصيل في نفس اليوم لجميع إمارات الدولة في عبوات مبردة وسحاحير فاخرة.
+							{t("footer.desc")}
 						</p>
 						<div className="flex items-center gap-3 text-xs text-amber-200">
 							<a
@@ -46,23 +47,23 @@ export const Footer: React.FC = () => {
 					{/* Category links */}
 					<div className="space-y-2.5">
 						<h4 className="text-xs font-bold text-white tracking-wider">
-							أقسام المحصول الإماراتي
+							{t("footer.quickLinks")}
 						</h4>
 						<ul className="space-y-2 text-xs text-stone-300">
-							<li>
-								<button
-									onClick={() => handleNav("rutab")}
-									className="hover:text-amber-300 transition-colors"
-								>
-									رطب خلاص وبومعان ليوا والعين
-								</button>
-							</li>
 							<li>
 								<button
 									onClick={() => handleNav("fig")}
 									className="hover:text-amber-300 transition-colors"
 								>
-									تين أسود وعسلي مزارع الذيد وحتا
+									{t("nav.freshFigs")}
+								</button>
+							</li>
+							<li>
+								<button
+									onClick={() => handleNav("dates")}
+									className="hover:text-amber-300 transition-colors"
+								>
+									{t("nav.dates")}
 								</button>
 							</li>
 							<li>
@@ -70,15 +71,15 @@ export const Footer: React.FC = () => {
 									onClick={() => handleNav("faqa")}
 									className="hover:text-amber-300 transition-colors"
 								>
-									فقع زبيدي وخلاسي صحراء الظفرة
+									{t("nav.desertTruffles")}
 								</button>
 							</li>
 							<li>
 								<button
-									onClick={() => handleNav("boxes")}
+									onClick={() => handleNav("all")}
 									className="hover:text-amber-300 transition-colors"
 								>
-									صناديق وبوكسات الضيافة والإهداء
+									{t("nav.allProducts")}
 								</button>
 							</li>
 						</ul>
@@ -88,7 +89,7 @@ export const Footer: React.FC = () => {
 					<div className="space-y-2.5">
 						<h4 className="text-xs font-bold text-white tracking-wider flex items-center gap-1.5">
 							<Shield className="w-3.5 h-3.5 text-amber-400" />
-							<span>الخصوصية والشروط</span>
+							<span>{t("footer.customerCare")}</span>
 						</h4>
 						<ul className="space-y-2 text-xs text-stone-300">
 							<li>
@@ -97,7 +98,7 @@ export const Footer: React.FC = () => {
 									className="hover:text-amber-300 transition-colors flex items-center gap-1.5"
 								>
 									<Lock className="w-3 h-3 text-stone-400" />
-									<span>سياسة الخصوصية (قانون إماراتي)</span>
+									<span>{t("footer.privacyPolicy")}</span>
 								</button>
 							</li>
 							<li>
@@ -106,7 +107,7 @@ export const Footer: React.FC = () => {
 									className="hover:text-amber-300 transition-colors flex items-center gap-1.5"
 								>
 									<FileText className="w-3 h-3 text-stone-400" />
-									<span>شروط الاستخدام والخدمة</span>
+									<span>{t("footer.termsOfService")}</span>
 								</button>
 							</li>
 							<li>
@@ -114,7 +115,7 @@ export const Footer: React.FC = () => {
 									onClick={() => openPrivacyPolicy("cookies")}
 									className="hover:text-amber-300 transition-colors"
 								>
-									إدارة ملفات تعريف الارتباط (Cookies)
+									{t("cookies.title")}
 								</button>
 							</li>
 							<li>
@@ -125,7 +126,7 @@ export const Footer: React.FC = () => {
 									className="hover:text-amber-300 transition-colors flex items-center gap-1.5 text-stone-400"
 								>
 									<Share2 className="w-3 h-3 text-amber-400" />
-									<span>خلاصة كتالوج Meta (XML Feed)</span>
+									<span>Meta Catalog XML Feed</span>
 								</a>
 							</li>
 						</ul>
@@ -134,35 +135,35 @@ export const Footer: React.FC = () => {
 					{/* Contact & Hours */}
 					<div className="space-y-2.5">
 						<h4 className="text-xs font-bold text-white tracking-wider">
-							خدمة العملاء والطلبات
+							{t("footer.contact")}
 						</h4>
 						<div className="space-y-2 text-xs text-stone-300">
 							<a
-								href={`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}`}
+								href={`https://wa.me/${(settings.whatsappNumber || "971504020220").replace(/[^0-9]/g, "")}`}
 								target="_blank"
 								rel="noreferrer"
 								className="flex items-center gap-2 hover:text-emerald-400 transition-colors"
 							>
 								<MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-								<span>طلبات واتساب المباشرة</span>
+								<span>{t("announcement.orderViaWhatsapp")}</span>
 							</a>
 							<a
-								href={`tel:${settings.contactPhone}`}
+								href={`tel:${settings.contactPhone || "0504020220"}`}
 								className="flex items-center gap-2 hover:text-amber-300 transition-colors"
 							>
 								<Phone className="w-3.5 h-3.5 text-amber-400" />
-								<span dir="ltr">{settings.contactPhone}</span>
+								<span dir="ltr">{settings.contactPhone || "0504020220"}</span>
 							</a>
 							<div className="flex items-center gap-2 text-stone-400">
 								<MapPin className="w-3.5 h-3.5 text-amber-400" />
-								<span>الإمارات العربية المتحدة 🇦🇪</span>
+								<span>{t("footer.address")}</span>
 							</div>
 						</div>
 					</div>
 				</div>
 
 				<div className="pt-8 border-t border-[#574127] flex flex-col sm:flex-row items-center justify-center text-center text-xs text-stone-400 gap-4">
-					<p>© {new Date().getFullYear()} مزارع تين ليوا. جميع الحقوق محفوظة لدولة الإمارات العربية المتحدة 🇦🇪</p>
+					<p>{t("footer.rights", { year: new Date().getFullYear() })}</p>
 				</div>
 			</div>
 		</footer>

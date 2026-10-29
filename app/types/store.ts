@@ -39,7 +39,7 @@ export interface Product {
 export interface CartItem {
 	product: Product;
 	quantity: number;
-	packagingOption: "standard" | "luxury_wood_box" | "chilled_carton";
+	packagingOption?: string;
 }
 
 export interface OrderItem {

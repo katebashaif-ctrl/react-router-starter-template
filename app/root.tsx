@@ -8,7 +8,8 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
-import "./app.css";
+import "./frontend/css/main.css";
+import { t } from "./frontend/locales/i18n";
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -29,15 +30,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-				<title>تين ليوا (teenliwa) | متجر التين والرطب والفقع الإماراتي</title>
+				<title>{t("brand.metaTitle")}</title>
 				<meta
 					name="description"
-					content="متجر تين ليوا (teenliwa) الإلكتروني لمحاصيل التين الأحمر والأصفر الطازج، الرطب الفاخر، وفقع الصحراء الإماراتي مع توصيل مبرد وبوابة دفع إلكترونية."
+					content={t("brand.metaDescription")}
 				/>
-				<meta property="og:title" content="تين ليوا (teenliwa) | متجر التين والرطب والفقع الإماراتي" />
+				<meta property="og:title" content={t("brand.metaTitle")} />
 				<meta
 					property="og:description"
-					content="متجر تين ليوا (teenliwa) الإلكتروني لمحاصيل التين الأحمر والأصفر الطازج، الرطب الفاخر، وفقع الصحراء الإماراتي مع توصيل مبرد وبوابة دفع إلكترونية."
+					content={t("brand.metaDescription")}
 				/>
 				<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 				<Meta />
@@ -57,15 +58,15 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-	let message = "عذراً!";
-	let details = "حدث خطأ غير متوقع.";
+	let message = t("errors.general");
+	let details = t("errors.general");
 	let stack: string | undefined;
 
 	if (isRouteErrorResponse(error)) {
-		message = error.status === 404 ? "٤٠٤" : "خطأ";
+		message = error.status === 404 ? t("errors.notFoundTitle") : t("errors.general");
 		details =
 			error.status === 404
-				? "الصفحة المطلوبة غير موجودة."
+				? t("errors.notFoundDesc")
 				: error.statusText || details;
 	} else if (import.meta.env.DEV && error && error instanceof Error) {
 		details = error.message;
@@ -85,7 +86,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 				href="/"
 				className="inline-block px-5 py-2.5 bg-amber-900 text-white rounded-lg hover:bg-amber-800 transition-colors"
 			>
-				العودة للرئيسية
+				{t("errors.backHome")}
 			</a>
 		</main>
 	);

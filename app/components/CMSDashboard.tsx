@@ -2024,9 +2024,10 @@ export const CMSDashboard: React.FC = () => {
 
 						<form onSubmit={handleSaveEditProduct} className="space-y-3 text-xs">
 							<div>
-								<label className="block font-semibold mb-1">اسم المنتج</label>
+								<label className="block font-semibold mb-1">اسم المنتج *</label>
 								<input
 									type="text"
+									required
 									value={editingProduct.name}
 									onChange={(e) =>
 										setEditingProduct({ ...editingProduct, name: e.target.value })
@@ -2035,11 +2036,114 @@ export const CMSDashboard: React.FC = () => {
 								/>
 							</div>
 
+							{/* Immediate Availability Status Control */}
+							<div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+								<label className="block font-bold text-stone-900">حالة توفر المنتج للعملاء في المتجر *</label>
+								<div className="grid grid-cols-2 gap-2">
+									<button
+										type="button"
+										onClick={() =>
+											setEditingProduct({
+												...editingProduct,
+												inStock: true,
+												disabled: 0,
+												disabledTxt: editingProduct.disabledTxt === "قريباً" ? "متوفر" : (editingProduct.disabledTxt || "متوفر"),
+												stockQuantity: editingProduct.stockQuantity > 0 ? editingProduct.stockQuantity : 25,
+											})
+										}
+										className={`py-2 px-3 rounded-lg border font-bold text-center transition-all flex items-center justify-center gap-1.5 ${
+											editingProduct.inStock && editingProduct.disabled !== 1
+												? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
+												: "bg-white text-stone-700 border-stone-300 hover:bg-emerald-50"
+										}`}
+									>
+										<CheckCircle2 className="w-3.5 h-3.5" />
+										<span>متوفر للطلب الفوري</span>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setEditingProduct({
+												...editingProduct,
+												inStock: false,
+												disabled: 1,
+												disabledTxt: "قريباً",
+											})
+										}
+										className={`py-2 px-3 rounded-lg border font-bold text-center transition-all flex items-center justify-center gap-1.5 ${
+											!editingProduct.inStock || editingProduct.disabled === 1
+												? "bg-rose-700 text-white border-rose-800 shadow-sm"
+												: "bg-white text-stone-700 border-stone-300 hover:bg-rose-50"
+										}`}
+									>
+										<Clock className="w-3.5 h-3.5" />
+										<span>قريباً / غير متوفر</span>
+									</button>
+								</div>
+
+								<div className="pt-1">
+									<label className="block text-[11px] font-semibold text-stone-600 mb-0.5">
+										نص شارة الحالة الظاهرة في المتجر:
+									</label>
+									<input
+										type="text"
+										value={editingProduct.disabledTxt || ""}
+										onChange={(e) =>
+											setEditingProduct({
+												...editingProduct,
+												disabledTxt: e.target.value,
+											})
+										}
+										placeholder="مثال: متوفر، قريباً، الأكثر طلباً، موسمي"
+										className="w-full p-1.5 text-xs bg-white border border-stone-300 rounded-lg"
+									/>
+								</div>
+							</div>
+
 							<div className="grid grid-cols-2 gap-2">
 								<div>
-									<label className="block font-semibold mb-1">السعر (د.إ)</label>
+									<label className="block font-semibold mb-1">القسم</label>
+									<select
+										value={editingProduct.category}
+										onChange={(e) =>
+											setEditingProduct({
+												...editingProduct,
+												category: e.target.value as ProductCategory,
+											})
+										}
+										className="w-full p-2 border border-stone-300 rounded-lg bg-white"
+									>
+										<option value="rutab">رطب الإمارات</option>
+										<option value="fig">تين المزارع</option>
+										<option value="faqa">فقع الصحراء</option>
+										<option value="boxes">صناديق الإهداء</option>
+										<option value="dates">تمور فاخرة</option>
+										<option value="fruits">فواكه موسمية</option>
+										<option value="nuts">مكسرات ولوز</option>
+									</select>
+								</div>
+
+								<div>
+									<label className="block font-semibold mb-1">وحدة البيع والتعبئة</label>
+									<input
+										type="text"
+										value={editingProduct.unit || ""}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, unit: e.target.value })
+										}
+										placeholder="مثال: كرتون، كيلو قطاف طازج"
+										className="w-full p-2 border border-stone-300 rounded-lg"
+									/>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-2 gap-2">
+								<div>
+									<label className="block font-semibold mb-1">السعر (د.إ) *</label>
 									<input
 										type="number"
+										required
 										value={editingProduct.price}
 										onChange={(e) =>
 											setEditingProduct({
@@ -2052,17 +2156,19 @@ export const CMSDashboard: React.FC = () => {
 								</div>
 
 								<div>
-									<label className="block font-semibold mb-1">الكمية المتوفرة</label>
+									<label className="block font-semibold mb-1">الكمية المتوفرة بالمخزون</label>
 									<input
 										type="number"
-										value={editingProduct.stockQuantity}
-										onChange={(e) =>
+										value={editingProduct.stockQuantity ?? 25}
+										onChange={(e) => {
+											const val = Number(e.target.value);
 											setEditingProduct({
 												...editingProduct,
-												stockQuantity: Number(e.target.value),
-												inStock: Number(e.target.value) > 0,
-											})
-										}
+												stockQuantity: val,
+												inStock: val > 0,
+												disabled: val > 0 ? 0 : 1,
+											});
+										}}
 										className="w-full p-2 border border-stone-300 rounded-lg"
 									/>
 								</div>
@@ -2072,7 +2178,7 @@ export const CMSDashboard: React.FC = () => {
 								<label className="block font-semibold mb-1">المصدر / المزرعة</label>
 								<input
 									type="text"
-									value={editingProduct.origin}
+									value={editingProduct.origin || ""}
 									onChange={(e) =>
 										setEditingProduct({ ...editingProduct, origin: e.target.value })
 									}

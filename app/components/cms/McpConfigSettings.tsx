@@ -1,3 +1,4 @@
+import { cmsT, cmsFormat } from "../../frontend/locales/cmsI18n";
 import React, { useState, useEffect } from "react";
 import { useStore } from "../../context/StoreContext";
 import type { McpServersConfig } from "../../types/store";
@@ -79,7 +80,7 @@ export const McpConfigSettings: React.FC = () => {
 
 	const validateConfig = (text: string): ValidationResult => {
 		if (!text.trim()) {
-			const res = { isValid: false, errorMessage: "حقل الإعدادات فارغ. يرجى إدخال كائن JSON صالح." };
+			const res = { isValid: false, errorMessage: cmsT("cms_176") };
 			setValidation(res);
 			return res;
 		}
@@ -88,50 +89,50 @@ export const McpConfigSettings: React.FC = () => {
 			const parsed = JSON.parse(text);
 
 			if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-				const res = { isValid: false, errorMessage: "يجب أن تكون الإعدادات كائن JSON (Object)." };
+				const res = { isValid: false, errorMessage: cmsT("cms_177") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!parsed.mcpServers || typeof parsed.mcpServers !== "object") {
-				const res = { isValid: false, errorMessage: "يجب أن يحتوي كائن JSON على المفتاح الرئيسي 'mcpServers'." };
+				const res = { isValid: false, errorMessage: cmsT("cms_178") };
 				setValidation(res);
 				return res;
 			}
 
 			const metaServer = parsed.mcpServers["meta-mcp"];
 			if (!metaServer || typeof metaServer !== "object") {
-				const res = { isValid: false, errorMessage: "يجب أن يحتوي 'mcpServers' على المفتاح 'meta-mcp'." };
+				const res = { isValid: false, errorMessage: cmsT("cms_179") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!metaServer.url || typeof metaServer.url !== "string" || !metaServer.url.trim()) {
-				const res = { isValid: false, errorMessage: "المفتاح 'url' مطلوب ويجب أن يكون رابط خادم صالح (URL)." };
+				const res = { isValid: false, errorMessage: cmsT("cms_180") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!metaServer.url.startsWith("http://") && !metaServer.url.startsWith("https://")) {
-				const res = { isValid: false, errorMessage: "يجب أن يبدأ عنوان الخادم بـ https:// أو http://" };
+				const res = { isValid: false, errorMessage: cmsT("cms_181") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!metaServer.transport || typeof metaServer.transport !== "string") {
-				const res = { isValid: false, errorMessage: "المفتاح 'transport' مطلوب (مثل 'http')." };
+				const res = { isValid: false, errorMessage: cmsT("cms_182") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!metaServer.headers || typeof metaServer.headers !== "object") {
-				const res = { isValid: false, errorMessage: "يجب تضمين كائن 'headers' يحتوي على ترويسة المصادقة 'Authorization'." };
+				const res = { isValid: false, errorMessage: cmsT("cms_183") };
 				setValidation(res);
 				return res;
 			}
 
 			if (!metaServer.headers.Authorization || typeof metaServer.headers.Authorization !== "string") {
-				const res = { isValid: false, errorMessage: "يجب تحديد ترويسة 'Authorization' بصيغة 'Bearer <TOKEN>'." };
+				const res = { isValid: false, errorMessage: cmsT("cms_184") };
 				setValidation(res);
 				return res;
 			}
@@ -142,7 +143,7 @@ export const McpConfigSettings: React.FC = () => {
 		} catch (err) {
 			const res = {
 				isValid: false,
-				errorMessage: err instanceof Error ? `خطأ في بناء جملة JSON (Syntax Error): ${err.message}` : "صيغة JSON غير صالحة.",
+				errorMessage: err instanceof Error ? cmsFormat("cms_185", [err.message]) : cmsT("cms_186"),
 			};
 			setValidation(res);
 			return res;
@@ -152,7 +153,7 @@ export const McpConfigSettings: React.FC = () => {
 	const handleSave = () => {
 		const result = validateConfig(jsonInput);
 		if (!result.isValid || !result.parsedConfig) {
-			showToast("خطأ في الإعدادات", result.errorMessage || "يرجى تصحيح أخطاء الـ JSON قبل الحفظ.", "warning");
+			showToast(cmsT("cms_187"), result.errorMessage || cmsT("cms_188"), "warning");
 			return;
 		}
 
@@ -192,7 +193,7 @@ export const McpConfigSettings: React.FC = () => {
 	const handleTestConnection = async () => {
 		const result = validateConfig(jsonInput);
 		if (!result.isValid || !result.parsedConfig) {
-			showToast("تنبيه", "يرجى إدخال إعدادات JSON صحيحة أولاً لاختبار الاتصال.", "warning");
+			showToast(cmsT("cms_189"), cmsT("cms_190"), "warning");
 			return;
 		}
 
@@ -224,18 +225,18 @@ export const McpConfigSettings: React.FC = () => {
 			});
 
 			if (data.success) {
-				showToast("نجح الاتصال بخادم MCP", `تم الاتصال بالخادم بنجاح (${data.statusCode}) بزمن استجابة ${data.latencyMs}ms.`);
+				showToast(cmsT("cms_191"), cmsFormat("cms_192", [data.statusCode, data.latencyMs]));
 			} else {
-				showToast("استجابة الخادم", data.error || `أرجع الخادم رمز الحالة ${data.statusCode}`, "warning");
+				showToast(cmsT("cms_193"), data.error || cmsFormat("cms_194", [data.statusCode]), "warning");
 			}
 		} catch (err) {
 			setConnectionStatus({
 				tested: true,
 				success: false,
-				error: err instanceof Error ? err.message : "فشل الاتصال بالشبكة",
+				error: err instanceof Error ? err.message : cmsT("cms_195"),
 				timestamp: new Date().toLocaleTimeString("ar-AE"),
 			});
-			showToast("خطأ شبكة", "تعذر الاتصال بعنوان خادم MCP المحدد.", "warning");
+			showToast(cmsT("cms_196"), cmsT("cms_197"), "warning");
 		} finally {
 			setIsTestingConnection(false);
 		}
@@ -245,7 +246,7 @@ export const McpConfigSettings: React.FC = () => {
 		navigator.clipboard.writeText(text);
 		setCopiedKey(label);
 		setTimeout(() => setCopiedKey(null), 2500);
-		showToast("تم النسخ", `تم نسخ كود ${label} إلى الحافظة.`);
+		showToast(cmsT("cms_108"), cmsFormat("cms_198", [label]));
 	};
 
 	const claudeMcpSnippet = `claude mcp add --transport ${formTransport} meta-mcp "${formUrl}" --header "Authorization: ${formAuthHeader}"`;
@@ -261,14 +262,16 @@ export const McpConfigSettings: React.FC = () => {
 					<div>
 						<div className="flex items-center gap-2 flex-wrap">
 							<h2 className="font-serif text-lg font-bold text-[#2C2014]">
-								إعدادات خادم Model Context Protocol (MCP Settings)
+								
+								{cmsT("cms_199")}
 							</h2>
 							<span className="text-[10px] bg-blue-100 text-blue-800 border border-blue-300 font-mono font-bold px-2 py-0.5 rounded-full">
 								Custom MCP JSON
 							</span>
 						</div>
 						<p className="text-xs text-stone-500 pt-0.5">
-							تهيئة وإدارة خادم MCP المخصص لربط الحملات والتسوق بالذكاء الاصطناعي وبوابة teenliwa
+							
+							{cmsT("cms_200")}
 						</p>
 					</div>
 				</div>
@@ -285,7 +288,7 @@ export const McpConfigSettings: React.FC = () => {
 							}`}
 						>
 							<Code2 className="w-3.5 h-3.5" />
-							<span>محرر JSON</span>
+							<span>{cmsT("cms_201")}</span>
 						</button>
 						<button
 							onClick={() => setActiveViewMode("form")}
@@ -296,7 +299,7 @@ export const McpConfigSettings: React.FC = () => {
 							}`}
 						>
 							<Sliders className="w-3.5 h-3.5" />
-							<span>نموذج مرئي</span>
+							<span>{cmsT("cms_202")}</span>
 						</button>
 					</div>
 				</div>
@@ -307,14 +310,15 @@ export const McpConfigSettings: React.FC = () => {
 				<div className="flex items-center justify-between">
 					<span className="font-bold text-[#1877F2] flex items-center gap-1.5 text-xs">
 						<Zap className="w-4 h-4 text-[#1877F2]" />
-						<span>البنية المعتمدة لإعدادات خادم MCP (Expected JSON Schema):</span>
+						<span>{cmsT("cms_203")}</span>
 					</span>
 					<span className="font-mono text-[10px] bg-white px-2 py-0.5 rounded border border-blue-300 text-blue-800 font-bold">
 						mcpServers.meta-mcp
 					</span>
 				</div>
 				<p className="text-stone-600 text-[11px] leading-relaxed">
-					يقبل النظام كائن JSON يحتوي على رابط الخادم <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">https://mcp.teenliwa.com/mcp</code>، نوع النقل <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">http</code>، وترويسة التخويل <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">Authorization: Bearer ...</code>
+					
+					{cmsT("cms_204")} <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">https://mcp.teenliwa.com/mcp</code>   <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">http</code>   <code className="font-mono text-blue-700 bg-white px-1 py-0.5 rounded" dir="ltr">Authorization: Bearer ...</code>
 				</p>
 			</div>
 
@@ -324,19 +328,19 @@ export const McpConfigSettings: React.FC = () => {
 					<div className="flex items-center justify-between text-xs">
 						<label className="font-bold text-stone-800 flex items-center gap-1.5">
 							<Code2 className="w-4 h-4 text-blue-600" />
-							<span>محرر كائن JSON للإعدادات:</span>
+							<span>{cmsT("cms_205")}</span>
 						</label>
 
 						<div className="flex items-center gap-2">
 							{validation.isValid ? (
 								<span className="text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
 									<CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-									<span>صيغة JSON صحيحة ومطابقة</span>
+									<span>{cmsT("cms_206")}</span>
 								</span>
 							) : (
 								<span className="text-[11px] bg-rose-100 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
 									<AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-									<span>خطأ في بنية JSON</span>
+									<span>{cmsT("cms_207")}</span>
 								</span>
 							)}
 						</div>
@@ -357,14 +361,14 @@ export const McpConfigSettings: React.FC = () => {
 						<button
 							onClick={() => copyToClipboard(jsonInput, "MCP Config JSON")}
 							className="absolute top-3 right-3 p-1.5 bg-white/10 hover:bg-white/20 text-stone-200 rounded-lg flex items-center gap-1 text-[11px] backdrop-blur-sm"
-							title="نسخ الـ JSON"
+							title={cmsT("cms_208")}
 						>
 							{copiedKey === "MCP Config JSON" ? (
 								<Check className="w-3.5 h-3.5 text-emerald-400" />
 							) : (
 								<Copy className="w-3.5 h-3.5" />
 							)}
-							<span>{copiedKey === "MCP Config JSON" ? "تم النسخ" : "نسخ"}</span>
+							<span>{copiedKey === "MCP Config JSON" ? cmsT("cms_108") : cmsT("cms_150")}</span>
 						</button>
 					</div>
 
@@ -385,7 +389,8 @@ export const McpConfigSettings: React.FC = () => {
 						{/* Server URL */}
 						<div className="space-y-1.5 md:col-span-2">
 							<label className="font-semibold text-stone-800">
-								عنوان خادم MCP المخصص (Server URL):
+								
+								{cmsT("cms_209")}
 							</label>
 							<input
 								type="text"
@@ -400,7 +405,8 @@ export const McpConfigSettings: React.FC = () => {
 						{/* Transport */}
 						<div className="space-y-1.5">
 							<label className="font-semibold text-stone-800">
-								بروتوكول النقل (Transport):
+								
+								{cmsT("cms_210")}
 							</label>
 							<select
 								value={formTransport}
@@ -416,7 +422,8 @@ export const McpConfigSettings: React.FC = () => {
 						{/* Key ID */}
 						<div className="space-y-1.5">
 							<label className="font-semibold text-stone-800">
-								معرف الخادم الداخلي (Server ID):
+								
+								{cmsT("cms_211")}
 							</label>
 							<input
 								type="text"
@@ -430,7 +437,8 @@ export const McpConfigSettings: React.FC = () => {
 						{/* Authorization Header */}
 						<div className="space-y-1.5 md:col-span-2">
 							<label className="font-semibold text-stone-800">
-								ترويسة التخويل (Authorization Header):
+								
+								{cmsT("cms_212")}
 							</label>
 							<input
 								type="password"
@@ -455,7 +463,7 @@ export const McpConfigSettings: React.FC = () => {
 						className="px-5 py-2.5 bg-[#1877F2] hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
 					>
 						<Save className="w-4 h-4" />
-						<span>حفظ وتفعيل إعدادات MCP</span>
+						<span>{cmsT("cms_213")}</span>
 					</button>
 
 					{/* Test Connection Button */}
@@ -467,12 +475,12 @@ export const McpConfigSettings: React.FC = () => {
 						{isTestingConnection ? (
 							<>
 								<RefreshCw className="w-3.5 h-3.5 animate-spin" />
-								<span>جارِ فحص الاتصال...</span>
+								<span>{cmsT("cms_214")}</span>
 							</>
 						) : (
 							<>
 								<Zap className="w-3.5 h-3.5 text-amber-400" />
-								<span>اختبار الاتصال بالخادم الآن</span>
+								<span>{cmsT("cms_215")}</span>
 							</>
 						)}
 					</button>
@@ -481,15 +489,16 @@ export const McpConfigSettings: React.FC = () => {
 					<button
 						onClick={handleReset}
 						className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors border border-stone-200"
-						title="استعادة إعدادات teenliwa الافتراضية"
+						title={cmsT("cms_216")}
 					>
 						<RotateCcw className="w-3.5 h-3.5" />
-						<span>استعادة teenliwa الافتراضية</span>
+						<span>{cmsT("cms_217")}</span>
 					</button>
 				</div>
 
 				<span className="text-[11px] text-stone-500 self-center">
-					الخادم النشط: <strong className="font-mono text-stone-800" dir="ltr">{formUrl}</strong>
+					
+					{cmsT("cms_218")} <strong className="font-mono text-stone-800" dir="ltr">{formUrl}</strong>
 				</span>
 			</div>
 
@@ -511,8 +520,8 @@ export const McpConfigSettings: React.FC = () => {
 							)}
 							<span>
 								{connectionStatus.success
-									? `تم الاتصال بنجاح بخادم MCP (${connectionStatus.statusCode || 200})`
-									: `استجابة الخادم: ${connectionStatus.statusCode || "رمز حالة غير متوقع"}`}
+									? cmsFormat("cms_219", [connectionStatus.statusCode || 200])
+									: cmsFormat("cms_220", [connectionStatus.statusCode || "Unexpected Status"])}
 							</span>
 						</span>
 						{connectionStatus.latencyMs && (
@@ -546,14 +555,14 @@ export const McpConfigSettings: React.FC = () => {
 				<div className="flex items-center justify-between text-xs">
 					<span className="font-bold text-stone-800 flex items-center gap-1.5">
 						<Terminal className="w-4 h-4 text-stone-700" />
-						<span>أمر الربط المباشر مع Claude Code CLI:</span>
+						<span>{cmsT("cms_222")}</span>
 					</span>
 					<button
 						onClick={() => copyToClipboard(claudeMcpSnippet, "Claude CLI Command")}
 						className="text-[11px] text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1"
 					>
 						{copiedKey === "Claude CLI Command" ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-						<span>{copiedKey === "Claude CLI Command" ? "تم النسخ" : "نسخ الأمر"}</span>
+						<span>{copiedKey === "Claude CLI Command" ? cmsT("cms_108") : cmsT("cms_223")}</span>
 					</button>
 				</div>
 

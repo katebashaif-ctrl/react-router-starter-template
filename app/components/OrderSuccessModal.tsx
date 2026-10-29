@@ -1,6 +1,7 @@
 import React from "react";
 import { useStore } from "../context/StoreContext";
-import { CheckCircle2, Printer, ArrowRight, MapPin, Phone, Calendar } from "lucide-react";
+import { CheckCircle2, Printer, ArrowRight } from "lucide-react";
+import { t } from "../frontend/locales/i18n";
 
 export const OrderSuccessModal: React.FC = () => {
 	const { lastOrder, setLastOrder, settings } = useStore();
@@ -12,10 +13,10 @@ export const OrderSuccessModal: React.FC = () => {
 	};
 
 	const waItemsSummary = lastOrder.items
-		.map((i) => `• ${i.quantity} × ${i.name} (${i.price * i.quantity} د.إ)`)
+		.map((i) => `• ${i.quantity} × ${i.name} (${i.price * i.quantity} AED)`)
 		.join("%0A");
-	const waText = `*طلب جديد من مزارع تين ليوا*%0Aرقم الطلب: ${lastOrder.orderNumber}%0Aالاسم: ${lastOrder.customerName}%0Aالهاتف: ${lastOrder.customerPhone}%0Aالإمارة: ${lastOrder.customerEmirate}%0Aالعنوان: ${lastOrder.customerAddress}%0A%0A*المنتجات:*%0A${waItemsSummary}%0A%0A*الإجمالي:* ${lastOrder.total} د.إ`;
-	const whatsappUrl = `https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`;
+	const waText = `Order: ${lastOrder.orderNumber}%0AName: ${lastOrder.customerName}%0APhone: ${lastOrder.customerPhone}%0AEmirate: ${lastOrder.customerEmirate}%0AAddress: ${lastOrder.customerAddress}%0A%0AItems:%0A${waItemsSummary}%0A%0ATotal: ${lastOrder.total} AED`;
+	const whatsappUrl = `https://wa.me/${(settings.whatsappNumber || "971504020220").replace(/[^0-9]/g, "")}?text=${waText}`;
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn text-right">
@@ -26,15 +27,11 @@ export const OrderSuccessModal: React.FC = () => {
 						<CheckCircle2 className="w-9 h-9" />
 					</div>
 					<h3 className="font-serif text-2xl font-bold text-[#2C2014]">
-						تم استلام طلبكم المبارك بنجاح
+						{t("orderSuccess.title")}
 					</h3>
 					<p className="text-xs text-stone-500">
-						حياكم الله ونشكركم على ثقتكم في مزارع تين ليوا. سيصلكم اتصال للتأكيد والتوصيل في نفس اليوم.
+						{t("orderSuccess.subtitle")}
 					</p>
-					<div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold">
-						<CheckCircle2 className="w-3 h-3 text-emerald-600" />
-						<span>تم التوثيق والتسجيل بقاعدة بيانات المتجر السحابية</span>
-					</div>
 				</div>
 
 				{/* WhatsApp CTA if paymentMethod is whatsapp */}
@@ -45,49 +42,49 @@ export const OrderSuccessModal: React.FC = () => {
 						rel="noopener noreferrer"
 						className="block p-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-center font-bold text-xs shadow-md transition-colors"
 					>
-						📱 اضغط هنا لإرسال تفاصيل الفاتورة مباشرة عبر واتساب ←
+						{t("orderSuccess.trackViaWhatsapp")}
 					</a>
 				)}
 
 				{/* Order Header Card */}
 				<div className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E8DCCB] space-y-2 text-xs">
 					<div className="flex justify-between items-center pb-2 border-b border-stone-200">
-						<span className="text-stone-500">رقم الطلب:</span>
+						<span className="text-stone-500">{t("orderSuccess.orderNumber")}:</span>
 						<span className="font-serif font-bold text-sm text-[#2C2014] tabular-nums">
 							{lastOrder.orderNumber}
 						</span>
 					</div>
 					<div className="flex justify-between items-center">
-						<span className="text-stone-500">الاسم:</span>
+						<span className="text-stone-500">{t("orderSuccess.customer")}:</span>
 						<span className="font-semibold text-stone-800">{lastOrder.customerName}</span>
 					</div>
 					<div className="flex justify-between items-center">
-						<span className="text-stone-500">الهاتف:</span>
+						<span className="text-stone-500">{t("cart.phoneNumber")}:</span>
 						<span className="font-semibold text-stone-800" dir="ltr">{lastOrder.customerPhone}</span>
 					</div>
 					<div className="flex justify-between items-center">
-						<span className="text-stone-500">منطقة التوصيل:</span>
+						<span className="text-stone-500">{t("orderSuccess.emirate")}:</span>
 						<span className="font-semibold text-stone-800">
 							{lastOrder.customerEmirate} - {lastOrder.customerAddress}
 						</span>
 					</div>
 					<div className="flex justify-between items-center">
-						<span className="text-stone-500">طريقة الدفع:</span>
+						<span className="text-stone-500">{t("cart.paymentMethod")}:</span>
 						<span className="font-semibold text-stone-800">
 							{lastOrder.paymentMethod === "ziina"
-								? "بوابة Ziina (Apple Pay · بطاقة بنكية)"
+								? t("cart.payZiina")
 								: lastOrder.paymentMethod === "cod"
-									? "نقداً عند الاستلام"
+									? t("cart.payCod")
 									: lastOrder.paymentMethod === "card_on_delivery"
-										? "بطاقة ائتمانية عند التسليم"
-										: "تأكيد عبر واتساب"}
+										? t("cart.payCardOnDelivery")
+										: t("cart.payWhatsapp")}
 						</span>
 					</div>
 				</div>
 
 				{/* Items breakdown */}
 				<div className="space-y-2">
-					<h4 className="text-xs font-bold text-stone-800">تفاصيل المحصول المطلوب:</h4>
+					<h4 className="text-xs font-bold text-stone-800">{t("cart.title")}:</h4>
 					<div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
 						{lastOrder.items.map((it, idx) => (
 							<div
@@ -98,7 +95,7 @@ export const OrderSuccessModal: React.FC = () => {
 									{it.quantity} × {it.name} ({it.unit})
 								</span>
 								<span className="font-bold text-[#8B5A2B] tabular-nums">
-									{it.price * it.quantity} د.إ
+									{it.price * it.quantity} {t("products.currency")}
 								</span>
 							</div>
 						))}
@@ -107,9 +104,9 @@ export const OrderSuccessModal: React.FC = () => {
 
 				{/* Total */}
 				<div className="pt-2 border-t border-stone-200 flex justify-between items-baseline">
-					<span className="text-sm font-bold text-stone-800">المبلغ الإجمالي المستحق:</span>
+					<span className="text-sm font-bold text-stone-800">{t("orderSuccess.total")}:</span>
 					<span className="font-serif text-2xl font-bold text-[#2C2014] tabular-nums">
-						{lastOrder.total} د.إ
+						{lastOrder.total} {t("products.currency")}
 					</span>
 				</div>
 
@@ -119,7 +116,7 @@ export const OrderSuccessModal: React.FC = () => {
 						onClick={() => setLastOrder(null)}
 						className="flex-1 py-3 px-4 bg-[#2C2014] text-amber-200 text-xs font-bold rounded-xl hover:bg-black transition-colors flex items-center justify-center gap-1.5"
 					>
-						<span>متابعة التسوق</span>
+						<span>{t("orderSuccess.continueShopping")}</span>
 						<ArrowRight className="w-3.5 h-3.5" />
 					</button>
 
@@ -128,7 +125,6 @@ export const OrderSuccessModal: React.FC = () => {
 						className="py-3 px-4 bg-[#F5EFE6] text-[#574127] border border-[#D6BE9F] text-xs font-bold rounded-xl hover:bg-[#E8DCCB] transition-colors flex items-center justify-center gap-1.5"
 					>
 						<Printer className="w-4 h-4 text-amber-800" />
-						<span className="hidden sm:inline">طباعة الفاتورة</span>
 					</button>
 				</div>
 			</div>

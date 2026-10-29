@@ -11,10 +11,10 @@ import {
 	CheckCircle,
 	MessageSquare,
 	CreditCard,
-	Smartphone,
 	ShieldCheck,
 	Zap,
 } from "lucide-react";
+import { t, locale, formatImagePath } from "../frontend/locales/i18n";
 
 export const CartDrawer: React.FC = () => {
 	const {
@@ -27,12 +27,24 @@ export const CartDrawer: React.FC = () => {
 		setIsCartOpen,
 		settings,
 		addOrder,
+		setLastOrder,
 		showToast,
 	} = useStore();
 
+	const emiratesList: string[] = (locale.cart as any).emiratesList || [
+		"Abu Dhabi",
+		"Dubai",
+		"Sharjah",
+		"Al Ain",
+		"Ajman",
+		"Ras Al Khaimah",
+		"Fujairah",
+		"Umm Al Quwain",
+	];
+
 	const [customerName, setCustomerName] = useState("");
 	const [customerPhone, setCustomerPhone] = useState("");
-	const [customerEmirate, setCustomerEmirate] = useState("أبوظبي");
+	const [customerEmirate, setCustomerEmirate] = useState(emiratesList[0] || "");
 	const [customerAddress, setCustomerAddress] = useState("");
 	const [deliveryNotes, setDeliveryNotes] = useState("");
 	const [hasGiftNote, setHasGiftNote] = useState(false);
@@ -58,26 +70,13 @@ export const CartDrawer: React.FC = () => {
 		Math.round((cartTotal / settings.freeDeliveryThreshold) * 100),
 	);
 
-	const emirates = [
-		"أبوظبي",
-		"دبي",
-		"الشارقة",
-		"العين",
-		"عجمان",
-		"رأس الخيمة",
-		"الفجيرة",
-		"أم القيوين",
-	];
-
 	const validate = () => {
 		const newErrors: { name?: string; phone?: string; address?: string } = {};
-		if (!customerName.trim()) newErrors.name = "يرجى كتابة الاسم الكريم";
-		if (!customerPhone.trim()) {
-			newErrors.phone = "يرجى كتابة رقم الهاتف للتواصل";
-		} else if (customerPhone.trim().length < 8) {
-			newErrors.phone = "يرجى إدخال رقم هاتف صحيح";
+		if (!customerName.trim()) newErrors.name = t("cart.nameError");
+		if (!customerPhone.trim() || customerPhone.trim().length < 8) {
+			newErrors.phone = t("cart.phoneError");
 		}
-		if (!customerAddress.trim()) newErrors.address = "يرجى تحديد المنطقة والشارع أو رقم الفيلا";
+		if (!customerAddress.trim()) newErrors.address = t("cart.addressError");
 		setErrors(newErrors);
 		return Object.keys(newErrors).length === 0;
 	};
@@ -95,7 +94,6 @@ export const CartDrawer: React.FC = () => {
 			quantity: item.quantity,
 			price: item.product.price,
 			unit: item.product.unit,
-			packagingOption: item.packagingOption,
 		}));
 
 		const newOrder = await addOrder({
@@ -118,12 +116,15 @@ export const CartDrawer: React.FC = () => {
 		if (paymentMethod === "ziina") {
 			setZiinaRedirecting(true);
 			try {
+				const finalOrderId = newOrder.id || (newOrder as any).order?.id || `ord-${Date.now().toString(36)}`;
+				const finalOrderNumber = newOrder.orderNumber || (newOrder as any).order?.orderNumber || `AED-${Math.floor(1000 + Math.random() * 9000)}`;
+
 				const ziinaRes = await fetch("/api/ziina/create-intent", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						orderId: newOrder.id,
-						orderNumber: newOrder.orderNumber,
+						orderId: finalOrderId,
+						orderNumber: finalOrderNumber,
 						amount: grandTotal,
 						currency: "AED",
 						customerName,
@@ -135,13 +136,45 @@ export const CartDrawer: React.FC = () => {
 
 				const ziinaData = (await ziinaRes.json()) as any;
 				if (ziinaData.success && ziinaData.redirect_url) {
-					// Navigate to Ziina Hosted Checkout
-					window.location.href = ziinaData.redirect_url;
+					let targetUrl: string = ziinaData.redirect_url;
+
+					// Strip any hardcoded localhost:3000 to keep user on their current domain
+					if (targetUrl.includes("localhost:3000")) {
+						try {
+							const u = new URL(targetUrl);
+							targetUrl = `${u.pathname}${u.search}`;
+						} catch {
+							targetUrl = `/payment/callback?status=success&orderId=${encodeURIComponent(finalOrderId)}&simulated=true`;
+						}
+					}
+
+					// Clear cart now that payment intent is ready and verified
+					clearCart();
+					setIsCartOpen(false);
+
+					// Safe navigation: relative path stays on current app host
+					if (targetUrl.startsWith("/")) {
+						window.location.href = targetUrl;
+						return;
+					}
+
+					// If external gateway URL (e.g. pay.ziina.com), handle iframe breakout
+					if (typeof window !== "undefined" && window.self !== window.top) {
+						try {
+							window.top!.location.href = targetUrl;
+							return;
+						} catch {
+							window.open(targetUrl, "_blank");
+							return;
+						}
+					}
+
+					window.location.href = targetUrl;
 					return;
 				} else {
 					showToast(
-						"تنبيه بوابة الدفع",
-						ziinaData.error || "تعذر بدء جلسة الدفع عبر Ziina، يرجى المحاولة مرة أخرى",
+						t("paymentCallback.failedTitle"),
+						ziinaData.error || t("paymentCallback.failedDesc"),
 						"warning",
 					);
 					setZiinaRedirecting(false);
@@ -151,27 +184,31 @@ export const CartDrawer: React.FC = () => {
 			} catch (ziinaErr) {
 				console.error("Ziina payment init error:", ziinaErr);
 				showToast(
-					"خطأ في الاتصال",
-					"تعذر الاتصال بخادم الدفع، يرجى المحاولة لاحقاً",
+					t("paymentCallback.failedTitle"),
+					t("paymentCallback.failedDesc"),
 					"warning",
 				);
 				setZiinaRedirecting(false);
 				setIsSubmitting(false);
+				return;
 			}
 		}
 
+		// For Cash on Delivery, Card on Delivery, or WhatsApp:
+		clearCart();
+		setLastOrder(newOrder);
 		setIsSubmitting(false);
 		setIsCartOpen(false);
 
 		// 2. If WhatsApp chosen, prepare whatsapp link
 		if (paymentMethod === "whatsapp") {
 			const itemsSummary = cart
-				.map((i) => `• ${i.quantity} × ${i.product.name} (${i.product.price * i.quantity} د.إ)`)
+				.map((i) => `• ${i.quantity} × ${i.product.name} (${i.product.price * i.quantity} AED)`)
 				.join("%0A");
-			const waText = `*طلب جديد من مزارع تين ليوا*%0Aرقم الطلب: ${newOrder.orderNumber}%0Aالاسم: ${customerName}%0Aالهاتف: ${customerPhone}%0Aالإمارة: ${customerEmirate}%0Aالعنوان: ${customerAddress}%0A%0A*المنتجات:*%0A${itemsSummary}%0A%0A*الإجمالي:* ${grandTotal} د.إ`;
+			const waText = `Order: ${newOrder.orderNumber}%0AName: ${customerName}%0APhone: ${customerPhone}%0AEmirate: ${customerEmirate}%0AAddress: ${customerAddress}%0A%0AItems:%0A${itemsSummary}%0A%0ATotal: ${grandTotal} AED`;
 			try {
 				window.open(
-					`https://wa.me/${settings.whatsappNumber.replace(/[^0-9]/g, "")}?text=${waText}`,
+					`https://wa.me/${(settings.whatsappNumber || "971504020220").replace(/[^0-9]/g, "")}?text=${waText}`,
 					"_blank",
 				);
 			} catch {
@@ -191,16 +228,16 @@ export const CartDrawer: React.FC = () => {
 						<div className="flex items-center gap-2">
 							<ShoppingBag className="w-5 h-5 text-amber-800" />
 							<h3 className="font-serif text-lg font-bold text-[#2C2014]">
-								سلة المشتريات
+								{t("cart.title")}
 							</h3>
 							<span className="text-xs bg-[#E8DCCB] text-[#574127] font-semibold px-2 py-0.5 rounded-full tabular-nums">
-								{cart.length} أصناف
+								{t("cart.itemsCount", { count: cart.length })}
 							</span>
 						</div>
 						<button
 							onClick={() => setIsCartOpen(false)}
 							className="p-1.5 rounded-lg text-stone-500 hover:text-black hover:bg-stone-200/60 transition-colors"
-							aria-label="إغلاق السلة"
+							aria-label="close"
 						>
 							<X className="w-5 h-5" />
 						</button>
@@ -213,7 +250,7 @@ export const CartDrawer: React.FC = () => {
 								<p className="text-[#574127] font-medium flex items-center gap-1.5">
 									<Truck className="w-4 h-4 text-amber-700 shrink-0" />
 									<span>
-										أضف بقيمة <strong className="text-amber-900 tabular-nums">{remainingForFreeShipping} د.إ</strong> إضافية للحصول على توصيل مبرد مجاني
+										{t("cart.addMoreForFreeShipping", { amount: remainingForFreeShipping })}
 									</span>
 								</p>
 								<div className="w-full bg-stone-200 h-1.5 rounded-full overflow-hidden">
@@ -226,7 +263,7 @@ export const CartDrawer: React.FC = () => {
 						) : (
 							<p className="text-emerald-800 font-bold flex items-center gap-1.5">
 								<CheckCircle className="w-4 h-4 text-emerald-600" />
-								<span>طلبكم مؤهل للتوصيل المبرد المجاني لكافة الإمارات!</span>
+								<span>{t("cart.freeShippingQualified")}</span>
 							</p>
 						)}
 					</div>
@@ -239,17 +276,16 @@ export const CartDrawer: React.FC = () => {
 									<ShoppingBag className="w-8 h-8 opacity-60" />
 								</div>
 								<p className="font-serif text-lg font-bold text-stone-800">
-									سلتكم خالية حالياً
+									{t("cart.emptyTitle")}
 								</p>
 								<p className="text-xs text-stone-500 max-w-xs mx-auto">
-									تفضل باختيار أطايب الرطب والتين والفقع الإماراتي لإضافتها إلى
-									سلتك.
+									{t("cart.emptyDesc")}
 								</p>
 								<button
 									onClick={() => setIsCartOpen(false)}
 									className="mt-3 px-5 py-2.5 bg-[#2C2014] text-amber-200 text-xs font-semibold rounded-lg hover:bg-black transition-colors"
 								>
-									تصفح المنتجات
+									{t("cart.startShopping")}
 								</button>
 							</div>
 						) : (
@@ -257,11 +293,11 @@ export const CartDrawer: React.FC = () => {
 								<div className="space-y-3">
 									{cart.map((item) => (
 										<div
-											key={`${item.product.id}-${item.packagingOption}`}
+											key={item.product.id}
 											className="flex gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200/80 items-center justify-between"
 										>
 											<img
-												src={item.product.image}
+												src={formatImagePath(item.product.image)}
 												alt={item.product.name}
 												referrerPolicy="no-referrer"
 												className="w-16 h-16 rounded-lg object-cover bg-stone-200 shrink-0"
@@ -272,10 +308,10 @@ export const CartDrawer: React.FC = () => {
 													{item.product.name}
 												</h4>
 												<p className="text-[11px] text-stone-500">
-													{item.product.unit} · {item.packagingOption === "luxury_wood_box" ? "سحارة خشبية" : "تغليف قياسي"}
+													{item.product.unit || t("products.freshCut")}
 												</p>
 												<p className="text-xs font-bold text-[#8B5A2B] mt-1 tabular-nums">
-													{item.product.price * item.quantity} د.إ
+													{item.product.price * item.quantity} {t("products.currency")}
 												</p>
 											</div>
 
@@ -284,7 +320,7 @@ export const CartDrawer: React.FC = () => {
 												<button
 													onClick={() => removeFromCart(item.product.id)}
 													className="text-stone-400 hover:text-rose-600 transition-colors p-0.5"
-													title="حذف الصنف"
+													title={t("admin.delete")}
 												>
 													<Trash2 className="w-3.5 h-3.5" />
 												</button>
@@ -325,13 +361,13 @@ export const CartDrawer: React.FC = () => {
 											className="rounded text-amber-800 focus:ring-amber-800"
 										/>
 										<Gift className="w-3.5 h-3.5 text-amber-700" />
-										<span>هذا الطلب إهداء (إرفاق بطاقة إهداء فاخرة مجانية)</span>
+										<span>{t("cart.giftNote")}</span>
 									</label>
 									{hasGiftNote && (
 										<textarea
 											value={giftNoteText}
 											onChange={(e) => setGiftNoteText(e.target.value)}
-											placeholder="اكتب عبارة الإهداء واسم المهدى إليه..."
+											placeholder={t("cart.giftNotePlaceholder")}
 											rows={2}
 											className="w-full mt-2 p-2 text-xs border border-amber-300 rounded-lg bg-amber-50/40 focus:outline-none focus:ring-1 focus:ring-amber-800"
 										/>
@@ -341,18 +377,18 @@ export const CartDrawer: React.FC = () => {
 								{/* Customer Info Form */}
 								<form id="checkout-form" onSubmit={handleCheckout} className="pt-3 border-t border-stone-200 space-y-3">
 									<h4 className="text-xs font-bold text-stone-900">
-										بيانات التوصيل والتسليم:
+										{t("cart.customerInfo")}
 									</h4>
 
 									<div>
 										<label className="block text-[11px] font-medium text-stone-600 mb-1">
-											الاسم الكريم *
+											{t("cart.fullName")} *
 										</label>
 										<input
 											type="text"
 											value={customerName}
 											onChange={(e) => setCustomerName(e.target.value)}
-											placeholder="سالم بن راشد"
+											placeholder={t("cart.fullName")}
 											className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg focus:outline-none focus:border-amber-800"
 										/>
 										{errors.name && (
@@ -363,7 +399,7 @@ export const CartDrawer: React.FC = () => {
 									<div className="grid grid-cols-2 gap-2">
 										<div>
 											<label className="block text-[11px] font-medium text-stone-600 mb-1">
-												رقم الهاتف *
+												{t("cart.phoneNumber")} *
 											</label>
 											<input
 												type="tel"
@@ -380,14 +416,14 @@ export const CartDrawer: React.FC = () => {
 
 										<div>
 											<label className="block text-[11px] font-medium text-stone-600 mb-1">
-												الإمارة *
+												{t("cart.emirate")} *
 											</label>
 											<select
 												value={customerEmirate}
 												onChange={(e) => setCustomerEmirate(e.target.value)}
 												className="w-full px-2 py-1.5 text-xs border border-stone-300 rounded-lg focus:outline-none focus:border-amber-800 bg-white"
 											>
-												{emirates.map((em) => (
+												{emiratesList.map((em) => (
 													<option key={em} value={em}>
 														{em}
 													</option>
@@ -398,13 +434,13 @@ export const CartDrawer: React.FC = () => {
 
 									<div>
 										<label className="block text-[11px] font-medium text-stone-600 mb-1">
-											العنوان بالتفصيل (المنطقة والشارع) *
+											{t("cart.address")} *
 										</label>
 										<input
 											type="text"
 											value={customerAddress}
 											onChange={(e) => setCustomerAddress(e.target.value)}
-											placeholder="مثال: البطين، شارع الشيخ راشد، فيلا ١٢"
+											placeholder={t("cart.address")}
 											className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg focus:outline-none focus:border-amber-800"
 										/>
 										{errors.address && (
@@ -414,13 +450,13 @@ export const CartDrawer: React.FC = () => {
 
 									<div>
 										<label className="block text-[11px] font-medium text-stone-600 mb-1">
-											ملاحظات التوصيل (اختياري)
+											{t("cart.notes")}
 										</label>
 										<input
 											type="text"
 											value={deliveryNotes}
 											onChange={(e) => setDeliveryNotes(e.target.value)}
-											placeholder="مثال: يرجى الاتصال قبل الوصول بربع ساعة"
+											placeholder={t("cart.notes")}
 											className="w-full px-3 py-1.5 text-xs border border-stone-300 rounded-lg focus:outline-none focus:border-amber-800"
 										/>
 									</div>
@@ -429,11 +465,11 @@ export const CartDrawer: React.FC = () => {
 									<div className="space-y-2">
 										<div className="flex items-center justify-between">
 											<label className="block text-[11px] font-bold text-stone-700">
-												طريقة الدفع والتأكيد:
+												{t("cart.paymentMethod")}
 											</label>
 											<span className="text-[10px] text-amber-800 font-medium flex items-center gap-1">
 												<ShieldCheck className="w-3 h-3 text-emerald-600" />
-												<span>دفع إلكتروني آمن معتمد</span>
+												<span>{t("cart.instantAndSecure")}</span>
 											</span>
 										</div>
 
@@ -459,13 +495,13 @@ export const CartDrawer: React.FC = () => {
 												</div>
 												<div>
 													<div className="flex items-center gap-1.5 font-bold text-xs text-[#2C2014]">
-														<span>بوابة Ziina (Apple Pay · بطاقة بنكية)</span>
+														<span>{t("cart.payZiina")}</span>
 														<span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-100 text-emerald-800 font-semibold">
-															فوري وآمن
+															{t("cart.instantAndSecure")}
 														</span>
 													</div>
 													<p className="text-[10px] text-stone-500 mt-0.5">
-														فيزا، ماستركارد، Apple Pay، Google Pay بالدرهم الإماراتي
+														{t("cart.payZiinaSub")}
 													</p>
 												</div>
 											</div>
@@ -493,7 +529,7 @@ export const CartDrawer: React.FC = () => {
 														: "border-stone-200 text-stone-600 hover:bg-stone-50"
 												}`}
 											>
-												نقداً عند الاستلام
+												{t("cart.payCod")}
 											</button>
 											<button
 												type="button"
@@ -504,7 +540,7 @@ export const CartDrawer: React.FC = () => {
 														: "border-stone-200 text-stone-600 hover:bg-stone-50"
 												}`}
 											>
-												بطاقة عند التوصيل
+												{t("cart.payCardOnDelivery")}
 											</button>
 											<button
 												type="button"
@@ -516,16 +552,14 @@ export const CartDrawer: React.FC = () => {
 												}`}
 											>
 												<MessageSquare className="w-3 h-3 text-emerald-600" />
-												<span>عبر واتساب</span>
+												<span>{t("cart.payWhatsapp")}</span>
 											</button>
 										</div>
 
 										{paymentMethod === "ziina" && (
 											<div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[10px] text-amber-950 flex items-center gap-2">
 												<ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-												<span>
-													سيتم نقلك فوراً إلى شاشة دفع Ziina الرسمية لإتمام السداد الآمن عبر Apple Pay أو البطاقة الائتمانية.
-												</span>
+												<span>{t("cart.securePaymentNote")}</span>
 											</div>
 										)}
 									</div>
@@ -539,25 +573,25 @@ export const CartDrawer: React.FC = () => {
 						<div className="p-4 sm:p-5 border-t border-stone-200 bg-[#FAF7F2] space-y-3">
 							<div className="space-y-1.5 text-xs text-stone-600">
 								<div className="flex justify-between">
-									<span>قيمة المنتجات:</span>
+									<span>{t("cart.subtotal")}:</span>
 									<span className="font-semibold text-stone-900 tabular-nums">
-										{cartTotal} د.إ
+										{cartTotal} {t("products.currency")}
 									</span>
 								</div>
 								<div className="flex justify-between">
-									<span>رسوم التوصيل المبرد:</span>
+									<span>{t("cart.deliveryFee")}:</span>
 									<span className="font-semibold tabular-nums">
 										{deliveryFee === 0 ? (
-											<span className="text-emerald-700">مجاناً</span>
+											<span className="text-emerald-700">{t("cart.freeDelivery")}</span>
 										) : (
-											`${deliveryFee} د.إ`
+											`${deliveryFee} ${t("products.currency")}`
 										)}
 									</span>
 								</div>
 								<div className="flex justify-between text-base font-bold text-[#2C2014] pt-2 border-t border-stone-200">
-									<span>المجموع الكلي:</span>
+									<span>{t("cart.total")}:</span>
 									<span className="font-serif text-xl tabular-nums">
-										{grandTotal} د.إ
+										{grandTotal} {t("products.currency")}
 									</span>
 								</div>
 							</div>
@@ -573,31 +607,31 @@ export const CartDrawer: React.FC = () => {
 								}`}
 							>
 								{ziinaRedirecting ? (
-									<span>جاري تحويلكم إلى بوابة دفع Ziina...</span>
+									<span>{t("cart.processingPayment")}</span>
 								) : isSubmitting ? (
-									<span>جاري تسجيل الطلب في قاعدة البيانات...</span>
+									<span>{t("cart.processingPayment")}</span>
 								) : paymentMethod === "ziina" ? (
 									<>
 										<Zap className="w-4 h-4 text-amber-400" />
-										<span>الدفع الآمن عبر Ziina (Apple Pay · بطاقة) ({grandTotal} د.إ)</span>
+										<span>{t("cart.payZiina")} ({grandTotal} {t("products.currency")})</span>
 									</>
 								) : paymentMethod === "whatsapp" ? (
 									<>
 										<MessageSquare className="w-4 h-4 text-emerald-400" />
-										<span>تأكيد الطلب المباشر عبر واتساب ({grandTotal} د.إ)</span>
+										<span>{t("cart.payWhatsapp")} ({grandTotal} {t("products.currency")})</span>
 									</>
 								) : (
 									<>
 										<CheckCircle className="w-4 h-4 text-amber-400" />
-										<span>تأكيد الطلب الآن ({grandTotal} د.إ)</span>
+										<span>{t("cart.orderNow")} ({grandTotal} {t("products.currency")})</span>
 									</>
 								)}
 							</button>
 
 							<p className="text-[10px] text-stone-400 text-center">
 								{paymentMethod === "ziina"
-									? "دفع إلكتروني فوري ومحمي بتشفير البنوك عبر Ziina Payment Gateway"
-									: "سيصلك اتصال من فريق التوصيل لتأكيد وقت الوصول"}
+									? t("cart.securePaymentNote")
+									: t("cart.codNote")}
 							</p>
 						</div>
 					)}

@@ -110,7 +110,7 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
 
   return {
     authorized: false,
-    reason: "غير مصرح لك بالوصول. يتطلب هذا المسار صلاحيات المشرف (Admin Authorization Required)",
+    reason: "Unauthorized. Admin Authorization Required",
   };
 }
 

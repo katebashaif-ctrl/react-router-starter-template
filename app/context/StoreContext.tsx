@@ -25,6 +25,7 @@ import {
 	ADMIN_COOKIE_NAME,
 	getAdminRequestHeaders,
 } from "../utils/adminAuth";
+import { t } from "../frontend/locales/i18n";
 
 interface ToastNotification {
 	id: string;
@@ -67,7 +68,7 @@ interface StoreContextType {
 
 	// Cart
 	cart: CartItem[];
-	addToCart: (product: Product, quantity?: number, packaging?: CartItem["packagingOption"]) => void;
+	addToCart: (product: Product, quantity?: number, packaging?: string) => void;
 	updateCartQty: (productId: string, quantity: number) => void;
 	removeFromCart: (productId: string) => void;
 	clearCart: () => void;
@@ -240,17 +241,53 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		return false;
 	};
 
-	// Fetch catalog synchronously from Cloudflare R2
+	const getClientR2SecretKey = (): string => {
+		try {
+			if (typeof window !== "undefined") {
+				const saved = localStorage.getItem("liwa_r2_config");
+				if (saved) return JSON.parse(saved).secretAccessKey || "";
+			}
+		} catch {}
+		return "";
+	};
+
+	// Fetch catalog synchronously from Cloudflare R2 or local persistent storage
 	const fetchCatalogFromR2 = async (): Promise<boolean> => {
 		try {
-			const res = await fetch("/api/r2?intent=get_catalog");
+			const secretKey = getClientR2SecretKey();
+			const headers: HeadersInit = secretKey ? { "x-r2-secret-key": secretKey } : {};
+			const res = await fetch("/api/r2?intent=get_catalog", { headers });
 			const json = (await res.json()) as any;
-			if (json.success && json.fromR2 && json.data && Array.isArray(json.data.products) && json.data.products.length > 0) {
-				setProducts(json.data.products);
+			if (json.success && json.data && Array.isArray(json.data.products) && json.data.products.length > 0) {
+				const remoteProducts = json.data.products as Product[];
+
+				// Smart merge with INITIAL_PRODUCTS so authentic products are never wiped out
+				setProducts((prev) => {
+					const baseList = prev && prev.length >= INITIAL_PRODUCTS.length ? prev : [...INITIAL_PRODUCTS];
+					const remoteMap = new Map<string, Product>();
+					remoteProducts.forEach((rp) => remoteMap.set(rp.id, rp));
+
+					const merged = baseList.map((p) => {
+						if (remoteMap.has(p.id)) {
+							const rp = remoteMap.get(p.id)!;
+							remoteMap.delete(p.id);
+							return { ...p, ...rp };
+						}
+						return p;
+					});
+					// Append any new products created in R2
+					for (const newProduct of remoteMap.values()) {
+						merged.unshift(newProduct);
+					}
+					return merged;
+				});
+
 				if (json.data.settings) {
 					setSettings((prev) => ({ ...prev, ...json.data.settings }));
 				}
-				setIsR2Synced(true);
+				if (json.fromR2) {
+					setIsR2Synced(true);
+				}
 				return true;
 			}
 		} catch (err) {
@@ -262,16 +299,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	// Synchronize products & settings directly to Cloudflare R2
 	const syncCatalogToR2 = async (prodsToSync?: Product[], setsToSync?: StoreSettings): Promise<boolean> => {
 		try {
+			const secretKey = getClientR2SecretKey();
+			const headers: Record<string, string> = { "Content-Type": "application/json" };
+			if (secretKey) headers["x-r2-secret-key"] = secretKey;
+
+			const targetProducts = prodsToSync || products;
+			const targetSettings = setsToSync || settings;
+
 			const res = await fetch("/api/r2", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers,
 				body: JSON.stringify({
 					intent: "sync_catalog",
 					data: {
-						products: prodsToSync || products,
-						settings: setsToSync || settings,
+						products: targetProducts,
+						settings: targetSettings,
 						lastUpdated: new Date().toISOString(),
-						storeName: "تين ليوا",
+						storeName: "Teen Liwa",
 					},
 				}),
 			});
@@ -280,10 +324,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				setIsR2Synced(true);
 				return true;
 			}
+			if (json.localSynced) {
+				return true;
+			}
 		} catch (err) {
 			console.warn("Failed to sync catalog to Cloudflare R2:", err);
 		}
 		return false;
+	};
+
+	// Helper to set cookie with iframe-compatible attributes
+	const writeAdminCookie = () => {
+		if (typeof document !== "undefined") {
+			try {
+				const isSecure = window.location.protocol === "https:";
+				const sameSite = isSecure ? "SameSite=None; Secure" : "SameSite=Lax";
+				document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; ${sameSite}`;
+			} catch (e) {}
+		}
 	};
 
 	// Load from localStorage on client mount, then load live from R2
@@ -291,7 +349,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		setIsClient(true);
 		try {
 			const savedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-			if (savedProducts) setProducts(JSON.parse(savedProducts));
+			if (savedProducts) {
+				const parsed = JSON.parse(savedProducts);
+				if (Array.isArray(parsed) && parsed.length >= INITIAL_PRODUCTS.length) {
+					setProducts(parsed);
+				} else if (Array.isArray(parsed) && parsed.length > 0) {
+					// Merge with initial products to never lose catalog items
+					const map = new Map<string, Product>();
+					parsed.forEach((p: Product) => map.set(p.id, p));
+					const merged = INITIAL_PRODUCTS.map((p) => (map.has(p.id) ? { ...p, ...map.get(p.id)! } : p));
+					for (const [id, p] of map.entries()) {
+						if (!merged.some((m) => m.id === id)) merged.unshift(p);
+					}
+					setProducts(merged);
+				}
+			}
 
 			const savedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
 			if (savedOrders) setOrders(JSON.parse(savedOrders));
@@ -305,9 +377,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			const savedAuth = localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH);
 			if (savedAuth === "true") {
 				setIsAdminAuthenticated(true);
-				if (typeof document !== "undefined") {
-					document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; SameSite=Lax`;
-				}
+				writeAdminCookie();
 				fetchOrdersFromDatabase();
 			}
 
@@ -401,7 +471,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				localStorage.setItem(STORAGE_KEYS.MCP_CONFIG, JSON.stringify(newConfig));
 			} catch (e) {}
 		}
-		showToast("تم تحديث إعدادات MCP", "تم حفظ وتفعيل إعدادات خادم MCP بنجاح.");
+		showToast(t("toasts.mcpUpdated"), t("toasts.mcpUpdatedMsg"));
 	};
 
 	const resetMcpConfig = () => {
@@ -411,7 +481,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				localStorage.setItem(STORAGE_KEYS.MCP_CONFIG, JSON.stringify(DEFAULT_MCP_CONFIG));
 			} catch (e) {}
 		}
-		showToast("استعادة الإعدادات", "تمت استعادة إعدادات خادم MCP الافتراضية.");
+		showToast(t("toasts.mcpReset"), t("toasts.mcpResetMsg"));
 	};
 
 	// Toast helper
@@ -431,15 +501,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const adminLogin = (username: string, pass: string): boolean => {
 		if (username.trim() === "admin" && pass.trim() === "admin") {
 			setIsAdminAuthenticated(true);
-			if (typeof document !== "undefined") {
-				document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; SameSite=Lax`;
-			}
+			writeAdminCookie();
 			if (isClient) {
 				localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, "true");
 			}
 			setIsAdminLoginModalOpen(false);
 			setCurrentView("cms");
-			showToast("مرحباً بك يا مشرف", "تم تسجيل الدخول إلى لوحة تحكم CMS بنجاح.");
+			showToast(t("toasts.welcomeAdmin"), t("toasts.welcomeAdminMsg"));
 			setTimeout(() => {
 				fetchOrdersFromDatabase();
 			}, 100);
@@ -451,13 +519,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const adminLogout = () => {
 		setIsAdminAuthenticated(false);
 		if (typeof document !== "undefined") {
-			document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+			try {
+				document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+			} catch (e) {}
 		}
 		if (isClient) {
 			localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
 		}
 		setCurrentView("store");
-		showToast("تسجيل الخروج", "تم تسجيل الخروج من لوحة تحكم CMS.", "info");
+		showToast(t("toasts.logout"), t("toasts.logoutMsg"), "info");
 	};
 
 	const openCmsProtected = () => {
@@ -475,7 +545,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			localStorage.setItem(STORAGE_KEYS.COOKIE_CONSENT, val);
 		}
 		if (val === "accepted") {
-			showToast("تم حفظ التفضيلات", "تم قبول ملفات تعريف الارتباط وفق سياسة الخصوصية الإماراتية.");
+			showToast(t("toasts.cookieSaved"), t("toasts.cookieSavedMsg"));
 		}
 	};
 
@@ -521,45 +591,171 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			}
 		}
 
-		const newProduct: Product = { ...productData, image: finalImage, id: newId };
+		const inStock = productData.inStock !== false;
+		const newProduct: Product = {
+			...productData,
+			image: finalImage,
+			id: newId,
+			inStock,
+			disabled: inStock ? 0 : 1,
+			disabledTxt: inStock ? (productData.disabledTxt || "متوفر") : (productData.disabledTxt || "قريباً"),
+		};
 		const updated = [newProduct, ...products];
 		setProducts(updated);
-		showToast("تم إضافة المنتج", `تمت إضافة "${newProduct.name}" بنجاح ومزامنتها في سحابة R2.`);
+		if (isClient) {
+			try {
+				localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+			} catch {}
+		}
+		showToast(t("toasts.productAdded"), t("toasts.productAddedMsg"));
 
 		// Sync directly to Cloudflare R2
 		syncCatalogToR2(updated);
+
+		// Synchronize to backend /api/products
+		fetch("/api/products", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...getAdminRequestHeaders(),
+			},
+			body: JSON.stringify({
+				intent: "create_product",
+				product: newProduct,
+			}),
+		}).catch((e) => console.warn("Backend create product sync error:", e));
 	};
 
 	const updateProduct = (id: string, updates: Partial<Product>) => {
-		const updated = products.map((p) => (p.id === id ? { ...p, ...updates } : p));
+		const normalizedUpdates: Partial<Product> = { ...updates };
+
+		// Keep inStock, disabled, and disabledTxt in perfect sync
+		if (updates.inStock !== undefined && updates.disabled === undefined) {
+			normalizedUpdates.disabled = updates.inStock ? 0 : 1;
+			if (updates.inStock && (!updates.disabledTxt || updates.disabledTxt === "قريباً")) {
+				normalizedUpdates.disabledTxt = "متوفر";
+			} else if (!updates.inStock && (!updates.disabledTxt || updates.disabledTxt === "متوفر")) {
+				normalizedUpdates.disabledTxt = "قريباً";
+			}
+		} else if (updates.disabled !== undefined && updates.inStock === undefined) {
+			normalizedUpdates.inStock = updates.disabled === 0;
+			if (updates.disabled === 0 && (!updates.disabledTxt || updates.disabledTxt === "قريباً")) {
+				normalizedUpdates.disabledTxt = "متوفر";
+			} else if (updates.disabled === 1 && (!updates.disabledTxt || updates.disabledTxt === "متوفر")) {
+				normalizedUpdates.disabledTxt = "قريباً";
+			}
+		}
+
+		const updated = products.map((p) => (p.id === id ? { ...p, ...normalizedUpdates } : p));
 		setProducts(updated);
-		showToast("تم تحديث المنتج", "تم حفظ التعديلات بنجاح.");
+		if (isClient) {
+			try {
+				localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+			} catch {}
+		}
+		showToast(t("toasts.productUpdated"), t("toasts.productUpdatedMsg"));
 		syncCatalogToR2(updated);
+
+		// Synchronize to backend /api/products
+		fetch("/api/products", {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...getAdminRequestHeaders(),
+			},
+			body: JSON.stringify({
+				intent: "update_product",
+				id,
+				updates: normalizedUpdates,
+			}),
+		}).catch((e) => console.warn("Backend update product sync error:", e));
 	};
 
 	const deleteProduct = (id: string) => {
-		const target = products.find((p) => p.id === id);
 		const updated = products.filter((p) => p.id !== id);
 		setProducts(updated);
-		showToast("تم حذف المنتج", `تم حذف "${target?.name || id}" من المتجر.`, "info");
+		if (isClient) {
+			try {
+				localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+			} catch {}
+		}
+		showToast(t("toasts.productDeleted"), t("toasts.productDeletedMsg"), "info");
 		syncCatalogToR2(updated);
+
+		fetch("/api/products", {
+			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+				...getAdminRequestHeaders(),
+			},
+			body: JSON.stringify({
+				intent: "delete_product",
+				id,
+			}),
+		}).catch((e) => console.warn("Backend delete product sync error:", e));
 	};
 
 	const toggleProductStock = (id: string) => {
-		const updated = products.map((p) => (p.id === id ? { ...p, inStock: !p.inStock } : p));
+		const target = products.find((p) => p.id === id);
+		if (!target) return;
+
+		const nextInStock = !target.inStock;
+		const nextDisabled = nextInStock ? 0 : 1;
+		const nextDisabledTxt = nextInStock ? "متوفر" : "قريباً";
+		const nextStockQty = nextInStock ? (target.stockQuantity && target.stockQuantity > 0 ? target.stockQuantity : 25) : 0;
+
+		const updated = products.map((p) =>
+			p.id === id
+				? {
+						...p,
+						inStock: nextInStock,
+						disabled: nextDisabled,
+						disabledTxt: nextDisabledTxt,
+						stockQuantity: nextStockQty,
+				  }
+				: p
+		);
+
 		setProducts(updated);
+		if (isClient) {
+			try {
+				localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+			} catch {}
+		}
+		showToast(
+			nextInStock ? "تم تفعيل توفر المنتج" : "تم تعطيل المنتج (قريباً)",
+			`${target.name}: ${nextInStock ? "متوفر للطلب الفوري الآن" : "غير متوفر حالياً"}`
+		);
 		syncCatalogToR2(updated);
+
+		fetch("/api/products", {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...getAdminRequestHeaders(),
+			},
+			body: JSON.stringify({
+				intent: "update_product",
+				id,
+				updates: {
+					inStock: nextInStock,
+					disabled: nextDisabled,
+					disabledTxt: nextDisabledTxt,
+					stockQuantity: nextStockQty,
+				},
+			}),
+		}).catch((e) => console.warn("Backend products toggle sync error:", e));
 	};
 
 	// Cart operations
 	const addToCart = (
 		product: Product,
 		quantity: number = 1,
-		packaging: CartItem["packagingOption"] = "standard",
+		packaging?: string,
 	) => {
 		setCart((prev) => {
 			const existingIndex = prev.findIndex(
-				(item) => item.product.id === product.id && item.packagingOption === packaging,
+				(item) => item.product.id === product.id,
 			);
 			if (existingIndex > -1) {
 				const updated = [...prev];
@@ -579,7 +775,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			currency: "AED",
 		});
 
-		showToast("أضيف إلى السلة", `تمت إضافة ${quantity} × ${product.name} إلى حقيبة التسوق.`);
+		showToast(t("toasts.addedToCart"), t("toasts.addedToCartMsg"));
 	};
 
 	const updateCartQty = (productId: string, quantity: number) => {
@@ -622,10 +818,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			createdAt: new Date().toISOString(),
 		};
 
-		// 1. Update UI immediately
+		// 1. Update UI immediately with optimistic record
 		setOrders((prev) => [optimisticOrder, ...prev]);
-		clearCart();
-		setLastOrder(optimisticOrder);
+		if (orderData.paymentMethod !== "ziina") {
+			clearCart();
+			setLastOrder(optimisticOrder);
+		}
 
 		// 2. Persist order to database (Cloudflare D1 SQL & R2 bucket)
 		try {
@@ -639,12 +837,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			});
 			const json = (await res.json()) as any;
 			if (json.success && json.order) {
-				const savedOrder: Order = json.order;
+				const rawOrder = json.order.order ? json.order.order : json.order;
+				const savedOrder: Order = {
+					...optimisticOrder,
+					...rawOrder,
+					id: rawOrder.id || optimisticOrder.id,
+					orderNumber: rawOrder.orderNumber || optimisticOrder.orderNumber,
+				};
 				setOrders((prev) => prev.map((o) => (o.id === tempId ? savedOrder : o)));
-				setLastOrder(savedOrder);
+				if (orderData.paymentMethod !== "ziina") {
+					setLastOrder(savedOrder);
+				}
 				showToast(
-					"تم تسجيل الطلب في قاعدة البيانات",
-					`رقم الطلب: ${savedOrder.orderNumber}. تم حفظ تفاصيل الطلب في قاعدة بيانات المتجر السحابية بنجاح.`
+					t("toasts.orderSaved"),
+					`${t("orderSuccess.orderNumber")}: ${savedOrder.orderNumber}`
 				);
 
 				trackMetaEvent("Purchase", {
@@ -660,8 +866,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		} catch (err) {
 			console.error("Failed to save order to database:", err);
 			showToast(
-				"تنبيه حفظ الطلب",
-				"تم استلام طلبك محلياً وجاري مزامنته مع قاعدة البيانات.",
+				t("toasts.orderSaved"),
+				t("toasts.orderSavedMsg"),
 				"warning"
 			);
 		}
@@ -675,7 +881,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			num_items: optimisticOrder.items.reduce((s, i) => s + i.quantity, 0),
 		});
 
-		showToast("تم استلام طلبك المبارك", `رقم الطلب: ${orderNum}. سنقوم بالتواصل معكم لتأكيد موعد التوصيل.`);
+		showToast(t("toasts.orderReceived"), `${t("orderSuccess.orderNumber")}: ${orderNum}`);
 		return optimisticOrder;
 	};
 
@@ -683,7 +889,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		setOrders((prev) =>
 			prev.map((o) => (o.id === orderId ? { ...o, status } : o)),
 		);
-		showToast("تم تحديث الطلب", `تم تغيير حالة الطلب ${orderId} إلى: ${status} في قاعدة البيانات.`);
+		showToast(t("toasts.orderUpdated"), `${orderId}: ${status}`);
 
 		try {
 			await fetch("/api/orders", {
@@ -701,7 +907,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 	const deleteOrder = async (orderId: string) => {
 		setOrders((prev) => prev.filter((o) => o.id !== orderId));
-		showToast("تم حذف الطلب", "تم إزالة سجل الطلب من قاعدة البيانات.", "info");
+		showToast(t("toasts.orderDeleted"), t("toasts.orderDeletedMsg"), "info");
 
 		try {
 			await fetch("/api/orders", {
@@ -736,7 +942,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		};
 
 		setMetaCampaigns((prev) => [newCampaign, ...prev]);
-		showToast("حملة Meta جديدة", `تم إطلاق الحملة الإعلانية "${newCampaign.name}" بنجاح.`);
+		showToast(t("toasts.campaignAdded"), `${newCampaign.name}`);
 		return newCampaign;
 	};
 
@@ -753,8 +959,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		);
 		const target = metaCampaigns.find((c) => c.id === id);
 		showToast(
-			"حالة الحملة",
-			`تم تغيير حالة الحملة إلى: ${target?.status === "ACTIVE" ? "موقفة مؤقتاً" : "نشطة"}.`,
+			t("toasts.campaignStatus"),
+			`${target?.status === "ACTIVE" ? "PAUSED" : "ACTIVE"}`
 		);
 	};
 
@@ -762,12 +968,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		setMetaCampaigns((prev) =>
 			prev.map((c) => (c.id === id ? { ...c, dailyBudget: budget } : c)),
 		);
-		showToast("تحديث الميزانية", `تم تعديل الميزانية اليومية إلى ${budget} درهم.`);
+		showToast(t("toasts.budgetUpdated"), `${budget} AED`);
 	};
 
 	const deleteCampaign = (id: string) => {
 		setMetaCampaigns((prev) => prev.filter((c) => c.id !== id));
-		showToast("حذف الحملة", "تم حذف الحملة الإعلانية بنجاح.", "info");
+		showToast(t("toasts.campaignDeleted"), t("toasts.campaignDeletedMsg"), "info");
 	};
 
 	// Marketing Leads Operations
@@ -779,7 +985,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		};
 
 		setMarketingLeads((prev) => [newLead, ...prev]);
-		showToast("عميل محتمل جديد", `تم تسجيل العميل "${newLead.customerName}" من إعلانات Meta.`);
+		showToast(t("toasts.leadAdded"), `${newLead.customerName}`);
 		return newLead;
 	};
 
@@ -787,31 +993,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		setMarketingLeads((prev) =>
 			prev.map((l) => (l.id === id ? { ...l, leadStatus: status } : l)),
 		);
-		showToast("تحديث حالة العميل", `تم تغيير حالة العميل إلى: ${status}.`);
+		showToast(t("toasts.leadStatusUpdated"), `${status}`);
 	};
 
 	const updateLeadScore = (id: string, score: "high" | "medium" | "low", summary?: string) => {
 		setMarketingLeads((prev) =>
 			prev.map((l) => (l.id === id ? { ...l, aiScore: score, aiSummary: summary || l.aiSummary } : l)),
 		);
-		showToast("تحليل الذكاء الاصطناعي", "تم تقييم اهتمام العميل بالذكاء الاصطناعي بنجاح.");
+		showToast(t("toasts.leadScoreUpdated"), t("toasts.leadScoreUpdatedMsg"));
 	};
 
 	const deleteLead = (id: string) => {
 		setMarketingLeads((prev) => prev.filter((l) => l.id !== id));
-		showToast("حذف العميل", "تم حذف العميل من قائمة الاستقطاب.", "info");
+		showToast(t("toasts.leadDeleted"), t("toasts.leadDeletedMsg"), "info");
 	};
 
 	// Meta Config
 	const updateMetaConfig = (newConfig: Partial<MetaMarketingApiConfig>) => {
 		setMetaConfig((prev) => ({ ...prev, ...newConfig }));
-		showToast("إعدادات Meta", "تم حفظ إعدادات Meta Marketing API.");
+		showToast(t("toasts.metaSettings"), t("toasts.metaSettingsMsg"));
 	};
 
 	// Settings & Reset
 	const updateSettings = (newSettings: Partial<StoreSettings>) => {
 		setSettings((prev) => ({ ...prev, ...newSettings }));
-		showToast("تم حفظ الإعدادات", "تم تحديث إعدادات متجر تين ليوا.");
+		showToast(t("toasts.settingsSaved"), t("toasts.settingsSavedMsg"));
 	};
 
 	const resetToSampleData = () => {
@@ -831,7 +1037,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			localStorage.removeItem(STORAGE_KEYS.LEADS);
 			localStorage.removeItem(STORAGE_KEYS.META_CONFIG);
 		}
-		showToast("تم استرجاع البيانات الأصلية", "تمت إعادة تعيين المنتجات والطلبات والحملات النموذجية.");
+		showToast(t("toasts.dataReset"), t("toasts.dataResetMsg"));
 	};
 
 	return (

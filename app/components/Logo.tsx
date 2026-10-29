@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "../frontend/locales/i18n";
 
 interface LogoProps {
 	className?: string;
@@ -34,12 +35,10 @@ export const Logo: React.FC<LogoProps> = ({
 	return (
 		<div className={`flex flex-col text-right leading-tight select-none ${className}`}>
 			<span className={`font-serif ${titleSizes} tracking-tight ${titleColor} transition-colors group-hover:text-[#DE2A2D]`}>
-				تِين لِيوَا
+				{t("brand.name")}
 			</span>
 			<span className={`text-[10px] sm:text-[11px] font-semibold ${subtitleColor} tracking-wide flex items-center gap-1`}>
-				<span>مزارع ليوا</span>
-				<span className="text-[#DE2A2D]">·</span>
-				<span>الإمارات 🇦🇪</span>
+				<span>{t("brand.tagline")}</span>
 			</span>
 		</div>
 	);

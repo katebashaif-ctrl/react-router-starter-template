@@ -1,82 +1,61 @@
 import React from "react";
 import { useStore } from "../context/StoreContext";
 import type { ProductCategory } from "../types/store";
-import { Search } from "lucide-react";
+import { t } from "../frontend/locales/i18n";
 
 export const CategoryFilter: React.FC = () => {
-	const { activeCategory, setActiveCategory, searchQuery, setSearchQuery, products } = useStore();
+	const { activeCategory, setActiveCategory, products } = useStore();
 
-	const categories: { id: ProductCategory | "all"; label: string; count: number }[] = [
-		{ id: "all", label: "كافة المنتجات", count: products.length },
+	const categories: { id: ProductCategory | "all"; labelKey: string; count: number }[] = [
+		{ id: "all", labelKey: "categories.all", count: products.length },
 		{
 			id: "fig",
-			label: "تين ليوا الطازج",
-			count: products.filter((p) => p.category === "fig" || p.name.includes("تين")).length,
+			labelKey: "categories.fig",
+			count: products.filter((p) => p.category === "fig" || p.tag === "fig").length,
 		},
 		{
 			id: "dates",
-			label: "التمور الفاخرة",
+			labelKey: "categories.dates",
 			count: products.filter(
 				(p) =>
 					p.category === "dates" ||
 					p.category === "rutab" ||
-					p.tag === "dates" ||
-					p.name.includes("تمر"),
+					p.tag === "dates",
 			).length,
 		},
 		{
 			id: "faqa",
-			label: "فقع الصحراء",
+			labelKey: "categories.truffle",
 			count: products.filter(
-				(p) => p.category === "faqa" || p.category === "truffle" || p.tag === "truffle" || p.name.includes("فقع"),
+				(p) => p.category === "faqa" || p.category === "truffle" || p.tag === "truffle",
 			).length,
 		},
 		{
 			id: "nuts",
-			label: "اللوز والمكسرات",
-			count: products.filter((p) => p.category === "nuts" || p.tag === "nuts" || p.name.includes("لوز")).length,
+			labelKey: "categories.nuts",
+			count: products.filter((p) => p.category === "nuts" || p.tag === "nuts").length,
 		},
 		{
 			id: "fruits",
-			label: "فواكه الموسم",
-			count: products.filter((p) => p.category === "fruits" || p.name.includes("توت") || p.name.includes("صبار") || p.name.includes("كنار")).length,
+			labelKey: "categories.fruits",
+			count: products.filter((p) => p.category === "fruits" || p.tag === "fruits").length,
 		},
 	];
 
 	return (
 		<div className="space-y-4 mb-8" id="catalog-section">
-			{/* Top bar with heading, search input, and counts */}
+			{/* Top bar with heading and counts */}
 			<div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
 				<div>
 					<h2 className="font-serif text-2xl font-black text-[#2C2014] flex items-center gap-2">
-						<span>محاصيل ومنتجات مزارع تين ليوا</span>
+						<span>{t("products.sectionTitle")}</span>
 						<span className="text-xs px-2 py-0.5 rounded-md bg-[#DE2A2D]/10 text-[#DE2A2D] font-bold">
-							قطاف اليوم
+							{t("products.freshCut")}
 						</span>
 					</h2>
 					<p className="text-xs text-stone-500 mt-1">
-						القص والتوصيل في نفس اليوم — جميع المحاصيل طبيعية ومختارة بعناية
+						{t("products.sectionSubtitle")}
 					</p>
-				</div>
-
-				{/* Search input */}
-				<div className="relative w-full md:w-72">
-					<Search className="w-4 h-4 text-stone-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-					<input
-						type="text"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						placeholder="ابحث بالاسم أو المزرعة أو الصنف..."
-						className="w-full pl-4 pr-9 py-2 text-xs bg-white border border-[#D6BE9F] rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-800/20 focus:border-amber-800 transition-colors"
-					/>
-					{searchQuery && (
-						<button
-							onClick={() => setSearchQuery("")}
-							className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs px-1"
-						>
-							مسح
-						</button>
-					)}
 				</div>
 			</div>
 
@@ -94,7 +73,7 @@ export const CategoryFilter: React.FC = () => {
 									: "text-[#574127] hover:text-[#2C2014] hover:bg-white/60"
 							}`}
 						>
-							<span>{cat.label}</span>
+							<span>{t(cat.labelKey)}</span>
 							<span
 								className={`text-[11px] px-1.5 py-0.2 rounded font-medium tabular-nums ${
 									isActive

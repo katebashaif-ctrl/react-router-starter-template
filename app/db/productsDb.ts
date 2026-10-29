@@ -1,6 +1,8 @@
 import type { Product } from "../types/store";
 import { AwsClient } from "aws4fetch";
 import { INITIAL_PRODUCTS } from "../data/initialData";
+import fs from "fs";
+import path from "path";
 
 export interface D1DatabaseLike {
   prepare: (query: string) => {
@@ -18,23 +20,50 @@ let memoryProductsCache: Product[] = [...INITIAL_PRODUCTS];
 let isProductsLoaded = false;
 let isProductSchemaInitialized = false;
 
-// R2 Credentials configuration for remote cloud storage backup
-const R2_CONFIG = {
-  accountId: process.env.CLOUDFLARE_ACCOUNT_ID || "0b7dc087410628baa1f652ea0fb8bd57",
-  accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "edaa617e65bf06c1e92ae289e137d1c7",
-  secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "",
-  bucket: process.env.CLOUDFLARE_R2_BUCKET || "bt-liwa",
-  endpoint:
-    process.env.CLOUDFLARE_R2_ENDPOINT && process.env.CLOUDFLARE_R2_ENDPOINT.includes("r2.cloudflarestorage.com")
-      ? process.env.CLOUDFLARE_R2_ENDPOINT.replace(/\/+$/, "")
-      : `https://${process.env.CLOUDFLARE_ACCOUNT_ID || "0b7dc087410628baa1f652ea0fb8bd57"}.r2.cloudflarestorage.com`,
-};
+function getR2Config() {
+  let diskConfig: Record<string, string> = {};
+  const candidates = [
+    path.resolve(process.cwd(), "app/data/r2-config.json"),
+    "/app/applet/app/data/r2-config.json",
+    path.resolve(process.cwd(), "data/r2-config.json"),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) {
+        diskConfig = JSON.parse(fs.readFileSync(c, "utf-8"));
+        break;
+      }
+    } catch {}
+  }
+
+  const accountId =
+    diskConfig.accountId ||
+    process.env.CLOUDFLARE_ACCOUNT_ID ||
+    "0b7dc087410628baa1f652ea0fb8bd57";
+  const accessKeyId =
+    diskConfig.accessKeyId ||
+    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+    "6661dcbf8d777bf587cd42d1bcb8b9ca";
+  const secretAccessKey =
+    diskConfig.secretAccessKey ||
+    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
+    "e6f736a24c5624c6e5227c8b6d3a17c86bc9f7578c8a9e7fea39c125aa85723e";
+  const bucket =
+    diskConfig.bucket || process.env.CLOUDFLARE_R2_BUCKET || "bt-liwa";
+  const endpoint =
+    diskConfig.endpoint ||
+    process.env.CLOUDFLARE_R2_ENDPOINT ||
+    `https://${accountId}.r2.cloudflarestorage.com`;
+
+  return { accountId, accessKeyId, secretAccessKey, bucket, endpoint };
+}
 
 function getR2Client(): AwsClient | null {
-  if (!R2_CONFIG.accessKeyId || !R2_CONFIG.secretAccessKey) return null;
+  const cfg = getR2Config();
+  if (!cfg.accessKeyId || !cfg.secretAccessKey) return null;
   return new AwsClient({
-    accessKeyId: R2_CONFIG.accessKeyId,
-    secretAccessKey: R2_CONFIG.secretAccessKey,
+    accessKeyId: cfg.accessKeyId,
+    secretAccessKey: cfg.secretAccessKey,
     service: "s3",
     region: "auto",
   });
@@ -132,14 +161,14 @@ export function mapD1RowToProduct(row: any): Product {
     category: cat,
     price: Number(row.price) || 0,
     originalPrice: extraData.originalPrice || undefined,
-    unit: extraData.unit || "صندوق",
-    origin: extraData.origin || "مزارع ليوا والعين",
-    harvestDate: extraData.harvestDate || "قطاف طازج",
-    season: extraData.season || "موسم محلي",
-    image: row.image_url || extraData.image || "/images/product_emirati_rutab_1792506810615.jpg",
+    unit: extraData.unit || "box",
+    origin: extraData.origin || "Liwa & Al Ain Farms",
+    harvestDate: extraData.harvestDate || "Fresh Harvest",
+    season: extraData.season || "Local Season",
+    image: row.image_url || extraData.image || "/images/redfig.jpg",
     description: row.description || extraData.description || "",
     tastingNotes: extraData.tastingNotes || [],
-    storageInstructions: extraData.storageInstructions || "يُحفظ في مكان بارد ومبرد",
+    storageInstructions: extraData.storageInstructions || "Keep refrigerated",
     inStock: row.available === 1 || extraData.inStock !== false,
     stockQuantity: extraData.stockQuantity ?? 50,
     badge: extraData.badge || undefined,
@@ -153,9 +182,10 @@ export function mapD1RowToProduct(row: any): Product {
 export async function syncProductsToR2(products: Product[]): Promise<boolean> {
   const r2 = getR2Client();
   if (!r2) return false;
+  const cfg = getR2Config();
 
   try {
-    const storeUrl = `${R2_CONFIG.endpoint}/${R2_CONFIG.bucket}/data/store.json`;
+    const storeUrl = `${cfg.endpoint}/${cfg.bucket}/data/store.json`;
     await r2.fetch(storeUrl, {
       method: "PUT",
       headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
@@ -181,9 +211,10 @@ export async function syncProductsToR2(products: Product[]): Promise<boolean> {
 async function fetchProductsFromR2(): Promise<Product[] | null> {
   const r2 = getR2Client();
   if (!r2) return null;
+  const cfg = getR2Config();
 
   try {
-    const storeUrl = `${R2_CONFIG.endpoint}/${R2_CONFIG.bucket}/data/store.json`;
+    const storeUrl = `${cfg.endpoint}/${cfg.bucket}/data/store.json`;
     const res = await r2.fetch(storeUrl);
     if (res.ok) {
       const data = (await res.json()) as any;
@@ -329,9 +360,15 @@ export async function updateProductInDb(
   updates: Partial<Product>,
   d1?: D1DatabaseLike
 ): Promise<{ product: Product | null; dbSaved: boolean; r2Synced: boolean }> {
-  const idx = memoryProductsCache.findIndex((p) => p.id === id);
+  let idx = memoryProductsCache.findIndex((p) => p.id === id);
   if (idx === -1) {
-    return { product: null, dbSaved: false, r2Synced: false };
+    const initialMatch = INITIAL_PRODUCTS.find((p) => p.id === id);
+    if (initialMatch) {
+      memoryProductsCache.push({ ...initialMatch });
+      idx = memoryProductsCache.length - 1;
+    } else {
+      return { product: null, dbSaved: false, r2Synced: false };
+    }
   }
 
   const updated: Product = { ...memoryProductsCache[idx], ...updates };
