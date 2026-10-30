@@ -177,7 +177,25 @@ const STORAGE_KEYS = {
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
 	const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
-	const [settings, setSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
+	const [settings, setSettings] = useState<StoreSettings>(() => {
+		if (typeof window !== "undefined") {
+			try {
+				const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+				const ziinaToken = localStorage.getItem("teen_liwa_ziina_token");
+				if (saved) {
+					const parsed = JSON.parse(saved);
+					if (ziinaToken && !parsed.ziinaApiKey) {
+						parsed.ziinaApiKey = ziinaToken;
+					}
+					return { ...INITIAL_SETTINGS, ...parsed };
+				}
+				if (ziinaToken) {
+					return { ...INITIAL_SETTINGS, ziinaApiKey: ziinaToken };
+				}
+			} catch (e) {}
+		}
+		return INITIAL_SETTINGS;
+	});
 	const [mcpConfig, setMcpConfig] = useState<McpServersConfig>(DEFAULT_MCP_CONFIG);
 	const [cart, setCart] = useState<CartItem[]>([]);
 	const [currentView, setCurrentView] = useState<"store" | "cms">("store");
@@ -194,8 +212,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 	const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
 
-	// Cookie Consent & Legal Modals
-	const [cookieConsent, setCookieConsentState] = useState<CookieConsentStatus>(null);
+	// Cookie Consent & Legal Modals - synchronously checks localStorage & cookies
+	const [cookieConsent, setCookieConsentState] = useState<CookieConsentStatus>(() => {
+		if (typeof window !== "undefined") {
+			try {
+				const saved =
+					localStorage.getItem(STORAGE_KEYS.COOKIE_CONSENT) ||
+					localStorage.getItem("teen_liwa_cookie_consent");
+				if (saved === "accepted" || saved === "rejected" || saved === "custom") {
+					return saved as CookieConsentStatus;
+				}
+				if (document.cookie.includes("teen_liwa_cookie_consent=accepted")) return "accepted";
+				if (document.cookie.includes("teen_liwa_cookie_consent=rejected")) return "rejected";
+				if (document.cookie.includes("teen_liwa_cookie_consent=custom")) return "custom";
+			} catch (e) {}
+		}
+		return null;
+	});
 	const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
 	const [privacyModalTab, setPrivacyModalTab] = useState<"privacy" | "terms" | "cookies">("privacy");
 
@@ -283,7 +316,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				});
 
 				if (json.data.settings) {
-					setSettings((prev) => ({ ...prev, ...json.data.settings }));
+					setSettings((prev) => {
+						const remote = json.data.settings;
+						const merged = { ...prev, ...remote };
+						// Protect user's Ziina credentials from being overwritten by blank remote settings!
+						if (prev.ziinaApiKey && (!remote.ziinaApiKey || remote.ziinaApiKey.trim() === "")) {
+							merged.ziinaApiKey = prev.ziinaApiKey;
+						}
+						const savedToken = typeof window !== "undefined" ? localStorage.getItem("teen_liwa_ziina_token") : null;
+						if (savedToken && (!merged.ziinaApiKey || merged.ziinaApiKey.trim() === "")) {
+							merged.ziinaApiKey = savedToken;
+						}
+						return merged;
+					});
 				}
 				if (json.fromR2) {
 					setIsR2Synced(true);
@@ -541,8 +586,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	// Cookie Consent & Legal
 	const setCookieConsent = (val: "accepted" | "rejected" | "custom") => {
 		setCookieConsentState(val);
-		if (isClient) {
-			localStorage.setItem(STORAGE_KEYS.COOKIE_CONSENT, val);
+		if (typeof window !== "undefined") {
+			try {
+				localStorage.setItem(STORAGE_KEYS.COOKIE_CONSENT, val);
+				localStorage.setItem("teen_liwa_cookie_consent", val);
+				const isSecure = window.location.protocol === "https:";
+				const sameSite = isSecure ? "SameSite=None; Secure" : "SameSite=Lax";
+				document.cookie = `teen_liwa_cookie_consent=${val}; path=/; max-age=31536000; ${sameSite}`;
+			} catch (e) {}
 		}
 		if (val === "accepted") {
 			showToast(t("toasts.cookieSaved"), t("toasts.cookieSavedMsg"));
@@ -1016,7 +1067,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 	// Settings & Reset
 	const updateSettings = (newSettings: Partial<StoreSettings>) => {
-		setSettings((prev) => ({ ...prev, ...newSettings }));
+		setSettings((prev) => {
+			const updated = { ...prev, ...newSettings };
+			if (typeof window !== "undefined") {
+				try {
+					localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+					if (updated.ziinaApiKey) {
+						localStorage.setItem("teen_liwa_ziina_token", updated.ziinaApiKey);
+					}
+					if (updated.ziinaTestMode !== undefined) {
+						localStorage.setItem("teen_liwa_ziina_test_mode", String(updated.ziinaTestMode));
+					}
+				} catch (e) {}
+			}
+			// Synchronize to Cloudflare R2 and local disk store.json immediately
+			syncCatalogToR2(products, updated);
+			return updated;
+		});
 		showToast(t("toasts.settingsSaved"), t("toasts.settingsSavedMsg"));
 	};
 

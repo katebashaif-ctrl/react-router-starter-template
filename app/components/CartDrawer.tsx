@@ -13,6 +13,7 @@ import {
 	CreditCard,
 	ShieldCheck,
 	Zap,
+	ArrowUpRight,
 } from "lucide-react";
 import { t, locale, formatImagePath } from "../frontend/locales/i18n";
 
@@ -52,6 +53,7 @@ export const CartDrawer: React.FC = () => {
 	const [paymentMethod, setPaymentMethod] = useState<"ziina" | "cod" | "card_on_delivery" | "whatsapp">("ziina");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [ziinaRedirecting, setZiinaRedirecting] = useState(false);
+	const [ziinaModalUrl, setZiinaModalUrl] = useState<string | null>(null);
 	const [errors, setErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
 
 	if (!isCartOpen) return null;
@@ -119,6 +121,15 @@ export const CartDrawer: React.FC = () => {
 				const finalOrderId = newOrder.id || (newOrder as any).order?.id || `ord-${Date.now().toString(36)}`;
 				const finalOrderNumber = newOrder.orderNumber || (newOrder as any).order?.orderNumber || `AED-${Math.floor(1000 + Math.random() * 9000)}`;
 
+				const effectiveToken =
+					(settings.ziinaApiKey || "").trim() ||
+					(typeof window !== "undefined" ? (localStorage.getItem("teen_liwa_ziina_token") || "").trim() : "");
+
+				const effectiveTestMode =
+					settings.ziinaTestMode !== undefined
+						? settings.ziinaTestMode
+						: (typeof window !== "undefined" ? localStorage.getItem("teen_liwa_ziina_test_mode") !== "false" : true);
+
 				const ziinaRes = await fetch("/api/ziina/create-intent", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -129,8 +140,8 @@ export const CartDrawer: React.FC = () => {
 						currency: "AED",
 						customerName,
 						customerPhone,
-						apiToken: settings.ziinaApiKey,
-						testMode: settings.ziinaTestMode ?? true,
+						apiToken: effectiveToken || undefined,
+						testMode: effectiveTestMode,
 					}),
 				});
 
@@ -150,24 +161,34 @@ export const CartDrawer: React.FC = () => {
 
 					// Clear cart now that payment intent is ready and verified
 					clearCart();
-					setIsCartOpen(false);
 
-					// Safe navigation: relative path stays on current app host
+					// If internal relative URL (e.g. simulated payment):
 					if (targetUrl.startsWith("/")) {
+						setIsCartOpen(false);
 						window.location.href = targetUrl;
 						return;
 					}
 
-					// If external gateway URL (e.g. pay.ziina.com), handle iframe breakout
-					if (typeof window !== "undefined" && window.self !== window.top) {
-						try {
-							window.top!.location.href = targetUrl;
-							return;
-						} catch {
-							window.open(targetUrl, "_blank");
+					// For external gateway URL (pay.ziina.com / api-v2.ziina.com):
+					// Set the direct link modal in case popup or iframe navigation is restricted by browser
+					setZiinaModalUrl(targetUrl);
+					setZiinaRedirecting(false);
+
+					// Attempt immediate browser navigation or popup
+					try {
+						if (typeof window !== "undefined" && window.top && window.top !== window.self) {
+							window.top.location.href = targetUrl;
 							return;
 						}
-					}
+					} catch {}
+
+					try {
+						const popup = window.open(targetUrl, "_blank");
+						if (popup) {
+							setIsCartOpen(false);
+							return;
+						}
+					} catch {}
 
 					window.location.href = targetUrl;
 					return;
@@ -637,6 +658,50 @@ export const CartDrawer: React.FC = () => {
 					)}
 				</div>
 			</div>
+
+			{/* Ziina Payment Gateway Breakout Modal */}
+			{ziinaModalUrl && (
+				<div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 text-right">
+					<div className="bg-[#FAF7F2] rounded-3xl p-6 sm:p-8 max-w-md w-full border border-amber-900/20 shadow-2xl space-y-5 text-center animate-scaleUp">
+						<div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-700 border border-amber-500/20 flex items-center justify-center mx-auto shadow-sm">
+							<CreditCard className="w-8 h-8 text-amber-800 animate-pulse" />
+						</div>
+						<div className="space-y-2">
+							<h3 className="font-serif text-xl font-bold text-[#2C2014]">
+								الانتقال إلى بوابة الدفع الآمنة (Ziina)
+							</h3>
+							<p className="text-xs text-stone-600 leading-relaxed">
+								تم تجهيز الطلب بنجاح. إذا لم يتم فتح صفحة الدفع بالبطاقة / Apple Pay تلقائياً، يرجى الضغط على الزر أدناه لإتمام الدفع:
+							</p>
+						</div>
+						<div className="space-y-3 pt-2">
+							<a
+								href={ziinaModalUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								onClick={() => {
+									setIsCartOpen(false);
+									setZiinaModalUrl(null);
+								}}
+								className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-800 hover:to-amber-900 text-white font-bold text-sm rounded-xl shadow-lg transition-transform active:scale-95"
+							>
+								<span>الانتقال للدفع الآن عبر Ziina</span>
+								<ArrowUpRight className="w-4 h-4" />
+							</a>
+							<button
+								type="button"
+								onClick={() => {
+									setIsCartOpen(false);
+									setZiinaModalUrl(null);
+								}}
+								className="text-xs text-stone-500 hover:text-stone-800 underline"
+							>
+								إغلاق
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

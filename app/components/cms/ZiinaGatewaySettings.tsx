@@ -23,8 +23,20 @@ import {
 export const ZiinaGatewaySettings: React.FC = () => {
 	const { settings, updateSettings, showToast, orders } = useStore();
 
-	const [apiToken, setApiToken] = useState(settings.ziinaApiKey || "");
-	const [testMode, setTestMode] = useState<boolean>(settings.ziinaTestMode ?? true);
+	const [apiToken, setApiToken] = useState(() => {
+		if (settings.ziinaApiKey) return settings.ziinaApiKey;
+		if (typeof window !== "undefined") {
+			return localStorage.getItem("teen_liwa_ziina_token") || "";
+		}
+		return "";
+	});
+	const [testMode, setTestMode] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("teen_liwa_ziina_test_mode");
+			if (saved !== null) return saved !== "false";
+		}
+		return settings.ziinaTestMode ?? true;
+	});
 	const [webhookSecret, setWebhookSecret] = useState(settings.ziinaWebhookSecret || "");
 	const [isSaving, setIsSaving] = useState(false);
 	const [copiedWebhook, setCopiedWebhook] = useState(false);
@@ -32,6 +44,12 @@ export const ZiinaGatewaySettings: React.FC = () => {
 	// Test ping state
 	const [isTesting, setIsTesting] = useState(false);
 	const [testResult, setTestResult] = useState<any>(null);
+
+	React.useEffect(() => {
+		if (settings.ziinaApiKey && !apiToken) {
+			setApiToken(settings.ziinaApiKey);
+		}
+	}, [settings.ziinaApiKey]);
 
 	const webhookUrl =
 		typeof window !== "undefined"
@@ -50,8 +68,15 @@ export const ZiinaGatewaySettings: React.FC = () => {
 	const handleSaveConfig = (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsSaving(true);
+		const cleanToken = apiToken.trim();
+		if (typeof window !== "undefined") {
+			try {
+				localStorage.setItem("teen_liwa_ziina_token", cleanToken);
+				localStorage.setItem("teen_liwa_ziina_test_mode", String(testMode));
+			} catch (e) {}
+		}
 		updateSettings({
-			ziinaApiKey: apiToken.trim(),
+			ziinaApiKey: cleanToken,
 			ziinaTestMode: testMode,
 			ziinaWebhookSecret: webhookSecret.trim(),
 			ziinaEnabled: true,

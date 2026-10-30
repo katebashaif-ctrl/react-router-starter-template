@@ -1,12 +1,40 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useStore } from "../context/StoreContext";
 import { Cookie } from "lucide-react";
 import { t } from "../frontend/locales/i18n";
 
 export const CookieBanner: React.FC = () => {
 	const { cookieConsent, setCookieConsent, openPrivacyPolicy } = useStore();
+	const [mounted, setMounted] = useState(false);
 
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	// Prevent hydration flash and SSR mismatch
+	if (!mounted) return null;
+
+	// Respect store status
 	if (cookieConsent !== null) return null;
+
+	// Immediate synchronous check for localStorage and persistent cookie
+	if (typeof window !== "undefined") {
+		try {
+			const saved =
+				localStorage.getItem("teen_liwa_cookie_consent_v2") ||
+				localStorage.getItem("teen_liwa_cookie_consent");
+			if (saved === "accepted" || saved === "rejected" || saved === "custom") {
+				return null;
+			}
+			if (
+				document.cookie.includes("teen_liwa_cookie_consent=accepted") ||
+				document.cookie.includes("teen_liwa_cookie_consent=rejected") ||
+				document.cookie.includes("teen_liwa_cookie_consent=custom")
+			) {
+				return null;
+			}
+		} catch (e) {}
+	}
 
 	return (
 		<div className="fixed bottom-4 right-4 left-4 md:right-24 md:left-auto md:max-w-xl z-50 animate-slideUp text-right">

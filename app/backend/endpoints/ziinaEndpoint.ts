@@ -31,7 +31,8 @@ export async function handleZiinaCreateIntent({ request, context }: ActionFuncti
 		const currency = body.currency || "AED";
 		const amountInFils = Math.round(amount * 100);
 
-		const token = (body.apiToken || process.env.ZIINA_API_TOKEN || "").trim();
+		const rawToken = (body.apiToken || process.env.ZIINA_API_TOKEN || "").trim();
+		const token = rawToken.replace(/^Bearer\s+/i, "").trim();
 		const isTestMode = body.testMode ?? (process.env.ZIINA_TEST_MODE !== "false");
 
 		function getPublicBaseUrl(req: Request): string {
@@ -95,14 +96,83 @@ export async function handleZiinaCreateIntent({ request, context }: ActionFuncti
 					body: JSON.stringify(payload),
 				});
 
-				if (res.ok) {
-					paymentIntent = (await res.json()) as ZiinaPaymentIntent;
+				const resText = await res.text();
+				let parsedData: any = null;
+				try {
+					parsedData = JSON.parse(resText);
+				} catch {}
+
+				if (res.ok && parsedData?.redirect_url) {
+					paymentIntent = parsedData as ZiinaPaymentIntent;
 					isLiveGateway = true;
 				} else {
-					console.warn(`[Ziina Gateway HTTP ${res.status}] ${await res.text()}`);
+					console.warn(`[Ziina Gateway HTTP ${res.status}] ${resText}`);
+
+					// Auto-retry with flipped test flag if test/live mismatch occurs
+					const isTestError =
+						res.status === 400 ||
+						res.status === 422 ||
+						resText.toLowerCase().includes("test");
+
+					if (isTestError) {
+						console.log(`[Ziina Gateway] Retrying with test=${!payload.test}...`);
+						const retryPayload = { ...payload, test: !payload.test };
+						const retryRes = await fetch(`${ZIINA_API_BASE}/payment_intent`, {
+							method: "POST",
+							headers: {
+								Authorization: `Bearer ${token}`,
+								"Content-Type": "application/json",
+								Accept: "application/json",
+							},
+							body: JSON.stringify(retryPayload),
+						});
+
+						const retryText = await retryRes.text();
+						let retryData: any = null;
+						try {
+							retryData = JSON.parse(retryText);
+						} catch {}
+
+						if (retryRes.ok && retryData?.redirect_url) {
+							paymentIntent = retryData as ZiinaPaymentIntent;
+							isLiveGateway = true;
+						} else {
+							return Response.json(
+								{
+									success: false,
+									error:
+										retryData?.message ||
+										parsedData?.message ||
+										`خطأ في مفتاح Ziina (رمز ${retryRes.status})`,
+									detail: retryText,
+									isLiveGateway: false,
+								},
+								{ status: 400 },
+							);
+						}
+					} else {
+						return Response.json(
+							{
+								success: false,
+								error:
+									parsedData?.message ||
+									`تعذر قبول رمز الوصول لبوابة Ziina (رمز ${res.status})`,
+								detail: resText,
+								isLiveGateway: false,
+							},
+							{ status: 400 },
+						);
+					}
 				}
 			} catch (fetchErr) {
 				console.error("[Ziina Gateway Fetch Error]:", fetchErr);
+				return Response.json(
+					{
+						success: false,
+						error: `تعذر الاتصال بخوادم Ziina: ${fetchErr instanceof Error ? fetchErr.message : "Network error"}`,
+					},
+					{ status: 502 },
+				);
 			}
 		}
 
