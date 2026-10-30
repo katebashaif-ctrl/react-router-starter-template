@@ -1,4 +1,3 @@
-import { cmsT } from "../../frontend/locales/cmsI18n";
 import React, { useState, useEffect } from "react";
 import { useStore } from "../../context/StoreContext";
 import {
@@ -7,18 +6,12 @@ import {
 	ExternalLink,
 	Copy,
 	Check,
-	Play,
-	CheckCircle,
-	AlertCircle,
-	RefreshCw,
-	Lock,
 	ArrowUpRight,
 	Zap,
 	Receipt,
 	Server,
 	Activity,
 	Radio,
-	Sparkles,
 } from "lucide-react";
 
 interface ZiinaStatusData {
@@ -38,10 +31,6 @@ export const ZiinaGatewaySettings: React.FC = () => {
 	// Live status from server .env
 	const [status, setStatus] = useState<ZiinaStatusData | null>(null);
 	const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-
-	// Test ping state
-	const [isTesting, setIsTesting] = useState(false);
-	const [testResult, setTestResult] = useState<any>(null);
 	const [copiedWebhook, setCopiedWebhook] = useState(false);
 
 	const webhookUrl =
@@ -81,36 +70,6 @@ export const ZiinaGatewaySettings: React.FC = () => {
 		}
 	};
 
-	// Perform live connection diagnostic ping to Ziina
-	const handleRunTestPing = async () => {
-		setIsTesting(true);
-		setTestResult(null);
-		try {
-			const res = await fetch("/api/ziina/create-intent", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					intent: "ping",
-				}),
-			});
-			const data = await res.json();
-			setTestResult(data);
-			if (data.success) {
-				showToast("اتصال ناجح", data.message || "تم الاتصال ببوابة Ziina بنجاح والـ API مستجيب");
-			} else {
-				showToast("فحص الاتصال", data.error || "تعذر إتمام الاتصال بالبوابة", "warning");
-			}
-		} catch (err) {
-			setTestResult({
-				success: false,
-				error: err instanceof Error ? err.message : "Network error",
-			});
-			showToast("خطأ شبكة", "تعذر الوصول للخادم لفحص الاتصال", "warning");
-		} finally {
-			setIsTesting(false);
-		}
-	};
-
 	// Ziina Orders metrics
 	const ziinaOrders = orders.filter((o) => o.paymentMethod === "ziina");
 	const paidZiinaOrders = ziinaOrders.filter((o) => o.paymentStatus === "paid");
@@ -133,10 +92,10 @@ export const ZiinaGatewaySettings: React.FC = () => {
 						</span>
 					</div>
 					<h3 className="font-serif text-2xl font-bold text-amber-100">
-						حالة الاتصال والتشخيص المباشر
+						البطاقات البنكية و Apple Pay
 					</h3>
 					<p className="text-xs text-stone-300 leading-relaxed">
-						مفاتيح الربط والـ API Access Token تُدار وتُقرأ مباشرة من ملف البيئة المحمي (<strong>.env</strong>) على الخادم. تم إلغاء حقول الإدخال اليدوية لحماية بيانات الدفع والاعتماد على متغيرات البيئة الرسمية.
+						مفاتيح الربط والـ API Access Token تُدار وتُقرأ مباشرة وبشكل آمن من ملف البيئة المحمي (<strong>.env</strong>) على الخادم. تتم معالجة جميع عمليات السداد والتحقق من التوقيع الرقمي تلقائياً دون الحاجة لأي إعدادات يدوية في المتصفح.
 					</p>
 
 					<div className="flex flex-wrap items-center gap-3 pt-2">
@@ -162,7 +121,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 				</div>
 			</div>
 
-			{/* Status Cards */}
+			{/* Status & Metrics Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				{/* 1. Environment Config Source */}
 				<div className="bg-white p-5 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-2">
@@ -178,7 +137,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 					<div className="flex items-center gap-2 pt-1">
 						<span
 							className={`w-2.5 h-2.5 rounded-full ${
-								status?.configured ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+								status?.configured ? "bg-emerald-500" : "bg-amber-500"
 							}`}
 						></span>
 						<span className="font-bold text-sm text-stone-900">
@@ -201,7 +160,7 @@ export const ZiinaGatewaySettings: React.FC = () => {
 							<Radio className="w-3.5 h-3.5 text-amber-800" />
 							<span>بيئة التشغيل</span>
 						</p>
-						<span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold">
+						<span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 font-bold font-mono">
 							ZIINA_TEST_MODE
 						</span>
 					</div>
@@ -244,167 +203,60 @@ export const ZiinaGatewaySettings: React.FC = () => {
 				</div>
 			</div>
 
-			{/* Main Diagnostic & Ping Action Center */}
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Diagnostics & Connection Test */}
-				<div className="bg-white p-6 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-5">
-					<div className="flex items-center justify-between pb-3 border-b border-stone-200">
-						<div className="flex items-center gap-2">
-							<div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-800 flex items-center justify-center">
-								<Activity className="w-4 h-4 text-amber-700" />
-							</div>
-							<div>
-								<h4 className="font-serif text-base font-bold text-[#2C2014]">
-									فحص وتشخيص الاتصال بالبوابة
-								</h4>
-								<p className="text-[11px] text-stone-400">
-									اختبار اتصال فوري بسيرفرات Ziina عبر التوكن المحمّل من .env
-								</p>
-							</div>
-						</div>
+			{/* Webhook Endpoint & Setup Guide */}
+			<div className="bg-white p-6 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-4">
+				<div className="flex items-center gap-2 pb-3 border-b border-stone-200">
+					<div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
+						<ShieldCheck className="w-4 h-4 text-emerald-700" />
 					</div>
-
-					<div className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E8DCCB] space-y-3">
-						<p className="text-xs text-stone-600 leading-relaxed">
-							يقوم هذا الاختبار بإرسال استعلام تشخيصي مباشر (Ping) إلى <code>https://api-v2.ziina.com/api/payment_intent</code> للتأكد من صحة التوكن، وقياس سرعة استجابة الخوادم، وجاهزية بوابة الدفع للعملاء.
+					<div>
+						<h4 className="font-serif text-base font-bold text-[#2C2014]">
+							رابط الويب هوك (Webhook Endpoint)
+						</h4>
+						<p className="text-[11px] text-stone-400">
+							استقبال إشعارات الدفع الآلية وتأكيد الطلبات فور السداد
 						</p>
-
-						<div className="pt-1 flex flex-wrap items-center gap-3">
-							<button
-								type="button"
-								onClick={handleRunTestPing}
-								disabled={isTesting}
-								className="px-5 py-2.5 bg-[#2C2014] hover:bg-black text-amber-200 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-60 active:scale-95"
-							>
-								<RefreshCw className={`w-4 h-4 ${isTesting ? "animate-spin text-amber-300" : ""}`} />
-								<span>{isTesting ? "جاري الفحص المباشر..." : "فحص الاتصال بالبوابة الآن (Ping)"}</span>
-							</button>
-
-							<button
-								type="button"
-								onClick={fetchGatewayStatus}
-								disabled={isLoadingStatus}
-								className="px-3.5 py-2.5 border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5"
-								title="إعادة تحميل حالة .env من الخادم"
-							>
-								<RefreshCw className={`w-3.5 h-3.5 ${isLoadingStatus ? "animate-spin" : ""}`} />
-								<span>تحديث الحالة</span>
-							</button>
-						</div>
 					</div>
-
-					{/* Test Ping Response Box */}
-					{testResult && (
-						<div
-							className={`p-4 rounded-2xl border text-xs space-y-3 transition-all animate-fadeIn ${
-								testResult.success
-									? "bg-emerald-50 border-emerald-200 text-emerald-950"
-									: "bg-rose-50 border-rose-200 text-rose-950"
-							}`}
-						>
-							<div className="flex items-center justify-between font-bold">
-								<span className="flex items-center gap-1.5">
-									{testResult.success ? (
-										<CheckCircle className="w-5 h-5 text-emerald-600" />
-									) : (
-										<AlertCircle className="w-5 h-5 text-rose-600" />
-									)}
-									<span className="text-sm font-serif">
-										{testResult.success ? "الاتصال ناجح ومستقر" : "فشل فحص الاتصال"}
-									</span>
-								</span>
-								{testResult.latencyMs !== undefined && (
-									<span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/80 border border-emerald-200">
-										{testResult.latencyMs} ms
-									</span>
-								)}
-							</div>
-
-							<p className="text-xs leading-relaxed">
-								{testResult.message || testResult.error}
-							</p>
-
-							{testResult.redirect_url && (
-								<div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-emerald-200/60">
-									<span className="text-[10px] text-stone-600 font-mono truncate max-w-[220px]" dir="ltr">
-										Intent ID: {testResult.payment_intent_id}
-									</span>
-									<a
-										href={testResult.redirect_url}
-										target="_blank"
-										rel="noreferrer"
-										className="px-3 py-1.5 bg-[#2C2014] hover:bg-black text-amber-200 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition-colors shadow-sm"
-									>
-										<span>معاينة صفحة الدفع (Ziina)</span>
-										<ExternalLink className="w-3.5 h-3.5" />
-									</a>
-								</div>
-							)}
-
-							{!testResult.success && testResult.detail && (
-								<pre className="p-2.5 bg-rose-100/60 rounded-lg font-mono text-[10px] text-rose-900 overflow-x-auto text-left" dir="ltr">
-									{testResult.detail}
-								</pre>
-							)}
-						</div>
-					)}
 				</div>
 
-				{/* Webhook Endpoint & Setup Guide */}
-				<div className="bg-white p-6 rounded-2xl border border-[#E8DCCB] shadow-sm space-y-4">
-					<div className="flex items-center gap-2 pb-3 border-b border-stone-200">
-						<div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
-							<ShieldCheck className="w-4 h-4 text-emerald-700" />
-						</div>
-						<div>
-							<h4 className="font-serif text-base font-bold text-[#2C2014]">
-								رابط الويب هوك (Webhook Endpoint)
-							</h4>
-							<p className="text-[11px] text-stone-400">
-								استقبال إشعارات الدفع الآلية وتأكيد الطلبات
-							</p>
-						</div>
-					</div>
+				<p className="text-xs text-stone-600 leading-relaxed">
+					عندما يكمل العميل عملية الدفع بنجاح في Ziina، يرسل الخادم إشعاراً فورياً إلى هذا الرابط لتحديث حالة الطلب إلى (<strong>مدفوع</strong>) تلقائياً:
+				</p>
 
-					<p className="text-xs text-stone-600 leading-relaxed">
-						عندما يكمل العميل عملية الدفع بنجاح في Ziina، يرسل الخادم إشعاراً فورياً إلى هذا الرابط لتحديث حالة الطلب إلى (<strong>مدفوع</strong>) تلقائياً:
-					</p>
-
-					<div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
-						<label className="block text-[11px] font-bold text-stone-700">
-							عنوان الويب هوك (Webhook URL):
-						</label>
-						<div className="flex items-center gap-2">
-							<input
-								type="text"
-								readOnly
-								value={webhookUrl}
-								dir="ltr"
-								className="w-full p-2 bg-white border border-stone-300 rounded-lg font-mono text-[11px] text-stone-800 select-all"
-							/>
-							<button
-								type="button"
-								onClick={copyWebhook}
-								className="px-3 py-2 bg-[#2C2014] hover:bg-black text-amber-200 rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
-							>
-								{copiedWebhook ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-								<span>{copiedWebhook ? "تم النسخ" : "نسخ"}</span>
-							</button>
-						</div>
-						<div className="flex items-center gap-1.5 text-[10px] text-stone-500">
-							<span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-							<span>الحدث المطلوب في لوحة تحكم Ziina: <code>payment_intent.status.updated</code></span>
-						</div>
+				<div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2">
+					<label className="block text-[11px] font-bold text-stone-700">
+						عنوان الويب هوك (Webhook URL):
+					</label>
+					<div className="flex items-center gap-2">
+						<input
+							type="text"
+							readOnly
+							value={webhookUrl}
+							dir="ltr"
+							className="w-full p-2 bg-white border border-stone-300 rounded-lg font-mono text-[11px] text-stone-800 select-all"
+						/>
+						<button
+							type="button"
+							onClick={copyWebhook}
+							className="px-3 py-2 bg-[#2C2014] hover:bg-black text-amber-200 rounded-lg text-xs font-bold transition-colors shrink-0 flex items-center gap-1 shadow-sm"
+						>
+							{copiedWebhook ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+							<span>{copiedWebhook ? "تم النسخ" : "نسخ"}</span>
+						</button>
 					</div>
-
-					<div className="p-3.5 bg-[#FAF7F2] rounded-xl border border-[#E8DCCB] space-y-1.5 text-xs text-stone-600">
-						<p className="font-bold text-[#2C2014]">متغيرات البيئة الموصى بها في .env:</p>
-						<ul className="space-y-1 font-mono text-[11px] text-stone-700 text-left bg-white p-2.5 rounded-lg border border-stone-200" dir="ltr">
-							<li>ZIINA_API_TOKEN=your_access_token_here</li>
-							<li>ZIINA_TEST_MODE=false</li>
-							<li>ZIINA_WEBHOOK_SECRET=your_webhook_secret_here</li>
-						</ul>
+					<div className="flex items-center gap-1.5 text-[10px] text-stone-500">
+						<span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+						<span>الحدث المطلوب في لوحة تحكم Ziina: <code>payment_intent.status.updated</code></span>
 					</div>
+				</div>
+
+				<div className="p-3.5 bg-[#FAF7F2] rounded-xl border border-[#E8DCCB] space-y-1.5 text-xs text-stone-600">
+					<p className="font-bold text-[#2C2014]">متغيرات البيئة في ملف .env بالخادم:</p>
+					<ul className="space-y-1 font-mono text-[11px] text-stone-700 text-left bg-white p-2.5 rounded-lg border border-stone-200" dir="ltr">
+						<li>ZIINA_API_TOKEN=your_access_token_here</li>
+						<li>ZIINA_TEST_MODE=false</li>
+						<li>ZIINA_WEBHOOK_SECRET=your_webhook_secret_here</li>
+					</ul>
 				</div>
 			</div>
 

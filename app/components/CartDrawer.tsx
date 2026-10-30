@@ -14,6 +14,8 @@ import {
 	ShieldCheck,
 	Zap,
 	ArrowUpRight,
+	Loader2,
+	Lock,
 } from "lucide-react";
 import { t, locale, formatImagePath } from "../frontend/locales/i18n";
 
@@ -53,6 +55,7 @@ export const CartDrawer: React.FC = () => {
 	const [paymentMethod, setPaymentMethod] = useState<"ziina" | "cod" | "card_on_delivery" | "whatsapp">("ziina");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [ziinaRedirecting, setZiinaRedirecting] = useState(false);
+	const [redirectProgress, setRedirectProgress] = useState(25);
 	const [ziinaModalUrl, setZiinaModalUrl] = useState<string | null>(null);
 	const [errors, setErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
 
@@ -117,6 +120,9 @@ export const CartDrawer: React.FC = () => {
 		// 1. If Ziina Payment Gateway selected: initiate Ziina Payment Intent and redirect
 		if (paymentMethod === "ziina") {
 			setZiinaRedirecting(true);
+			setRedirectProgress(30);
+			const timer1 = setTimeout(() => setRedirectProgress(65), 350);
+			const timer2 = setTimeout(() => setRedirectProgress(90), 850);
 			try {
 				const finalOrderId = newOrder.id || (newOrder as any).order?.id || `ord-${Date.now().toString(36)}`;
 				const finalOrderNumber = newOrder.orderNumber || (newOrder as any).order?.orderNumber || `AED-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -147,6 +153,9 @@ export const CartDrawer: React.FC = () => {
 
 				const ziinaData = (await ziinaRes.json()) as any;
 				if (ziinaData.success && ziinaData.redirect_url) {
+					clearTimeout(timer1);
+					clearTimeout(timer2);
+					setRedirectProgress(100);
 					let targetUrl: string = ziinaData.redirect_url;
 
 					// Strip any hardcoded localhost:3000 to keep user on their current domain
@@ -193,6 +202,8 @@ export const CartDrawer: React.FC = () => {
 					window.location.href = targetUrl;
 					return;
 				} else {
+					clearTimeout(timer1);
+					clearTimeout(timer2);
 					showToast(
 						t("paymentCallback.failedTitle"),
 						ziinaData.error || t("paymentCallback.failedDesc"),
@@ -203,6 +214,8 @@ export const CartDrawer: React.FC = () => {
 					return;
 				}
 			} catch (ziinaErr) {
+				clearTimeout(timer1);
+				clearTimeout(timer2);
 				console.error("Ziina payment init error:", ziinaErr);
 				showToast(
 					t("paymentCallback.failedTitle"),
@@ -621,16 +634,22 @@ export const CartDrawer: React.FC = () => {
 								type="submit"
 								form="checkout-form"
 								disabled={isSubmitting || ziinaRedirecting}
-								className={`w-full py-3.5 px-4 text-sm font-bold rounded-xl transition-colors shadow flex items-center justify-center gap-2 ${
+								className={`w-full py-3.5 px-4 text-sm font-bold rounded-xl transition-all shadow flex items-center justify-center gap-2 ${
 									paymentMethod === "ziina"
-										? "bg-amber-900 hover:bg-amber-950 text-amber-100"
-										: "bg-[#2C2014] hover:bg-black text-amber-200"
-								}`}
+										? "bg-amber-900 hover:bg-amber-950 text-amber-100 active:scale-[0.99]"
+										: "bg-[#2C2014] hover:bg-black text-amber-200 active:scale-[0.99]"
+								} disabled:opacity-85 disabled:cursor-wait`}
 							>
 								{ziinaRedirecting ? (
-									<span>{t("cart.processingPayment")}</span>
+									<div className="flex items-center justify-center gap-2">
+										<Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+										<span>جاري الاتصال وتجهيز الدفع...</span>
+									</div>
 								) : isSubmitting ? (
-									<span>{t("cart.processingPayment")}</span>
+									<div className="flex items-center justify-center gap-2">
+										<Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+										<span>{t("cart.processingPayment")}</span>
+									</div>
 								) : paymentMethod === "ziina" ? (
 									<>
 										<Zap className="w-4 h-4 text-amber-400" />
@@ -658,6 +677,64 @@ export const CartDrawer: React.FC = () => {
 					)}
 				</div>
 			</div>
+
+			{/* Dedicated Payment Redirect Spinner & Progress Indicator Overlay */}
+			{ziinaRedirecting && (
+				<div className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 text-right animate-fadeIn">
+					<div className="bg-[#FAF7F2] rounded-3xl p-6 sm:p-8 max-w-sm w-full border border-amber-900/20 shadow-2xl space-y-6 text-center animate-scaleUp">
+						{/* Animated Dual-Ring Spinner with Icon */}
+						<div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+							<div className="absolute inset-0 rounded-full border-4 border-amber-500/20"></div>
+							<div className="absolute inset-0 rounded-full border-4 border-amber-800 border-t-transparent animate-spin"></div>
+							<div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-800 flex items-center justify-center shadow-inner">
+								<CreditCard className="w-6 h-6 text-amber-800 animate-pulse" />
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<h3 className="font-serif text-lg font-bold text-[#2C2014]">
+								جاري تجهيز بوابة الدفع (Ziina)
+							</h3>
+							<p className="text-xs text-stone-600 leading-relaxed">
+								يرجى الانتظار لحظات، يتم الآن تشفير جلسة السداد وتجهيز الدفع عبر البطاقة البنكية أو Apple Pay...
+							</p>
+						</div>
+
+						{/* Progress Bar with Percentage */}
+						<div className="space-y-2">
+							<div className="w-full bg-stone-200/80 rounded-full h-2.5 overflow-hidden shadow-inner">
+								<div
+									className="bg-gradient-to-r from-amber-600 to-amber-800 h-2.5 rounded-full transition-all duration-500 ease-out shadow-sm"
+									style={{ width: `${redirectProgress}%` }}
+								/>
+							</div>
+							<div className="flex items-center justify-between text-[11px] font-medium text-stone-500">
+								<span className="flex items-center gap-1 text-emerald-700">
+									<Lock className="w-3 h-3 text-emerald-600" />
+									<span>اتصال آمن ومشفر 256-bit</span>
+								</span>
+								<span className="font-mono font-bold tabular-nums text-amber-900">{redirectProgress}%</span>
+							</div>
+						</div>
+
+						{/* Step Status Badges */}
+						<div className="grid grid-cols-3 gap-2 pt-2 border-t border-stone-200 text-[10px]">
+							<div className="text-center p-2 rounded-xl bg-emerald-50 text-emerald-800 font-semibold border border-emerald-100 flex flex-col items-center gap-1 shadow-xs">
+								<CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+								<span>تأكيد الطلب</span>
+							</div>
+							<div className="text-center p-2 rounded-xl bg-amber-50 text-amber-900 font-semibold border border-amber-200/60 flex flex-col items-center gap-1 shadow-xs">
+								<Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
+								<span>تأمين الجلسة</span>
+							</div>
+							<div className="text-center p-2 rounded-xl bg-stone-100 text-stone-400 font-medium flex flex-col items-center gap-1">
+								<div className="w-3.5 h-3.5 rounded-full border-2 border-stone-300"></div>
+								<span>صفحة الدفع</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Ziina Payment Gateway Breakout Modal */}
 			{ziinaModalUrl && (
