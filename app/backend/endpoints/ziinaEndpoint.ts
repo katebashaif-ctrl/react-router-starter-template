@@ -1,17 +1,85 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import fs from "fs";
+import path from "path";
 import { updateOrderPaymentInDb } from "../../db/ordersDb";
 import type { ZiinaPaymentIntent, ZiinaCreateIntentPayload } from "../../types/ziina";
 
 const ZIINA_API_BASE = "https://api-v2.ziina.com/api";
+
+export function getZiinaEnvConfig(): { token: string; isTestMode: boolean; webhookSecret: string } {
+	let token = (process.env.ZIINA_API_TOKEN || "").trim();
+	let testMode = process.env.ZIINA_TEST_MODE;
+	let webhookSecret = (process.env.ZIINA_WEBHOOK_SECRET || "").trim();
+
+	// Check .env file on disk if process.env doesn't have it yet
+	try {
+		const envCandidates = [
+			path.resolve(process.cwd(), ".env"),
+			"/app/applet/.env",
+		];
+		for (const p of envCandidates) {
+			if (fs.existsSync(p)) {
+				const content = fs.readFileSync(p, "utf-8");
+				for (const line of content.split("\n")) {
+					const trimmed = line.trim();
+					if (!trimmed || trimmed.startsWith("#")) continue;
+					const [key, ...rest] = trimmed.split("=");
+					const val = rest.join("=").trim().replace(/^['"]|['"]$/g, "");
+					if (key.trim() === "ZIINA_API_TOKEN" && !token) {
+						token = val;
+					}
+					if (key.trim() === "ZIINA_TEST_MODE" && testMode === undefined) {
+						testMode = val;
+					}
+					if (key.trim() === "ZIINA_WEBHOOK_SECRET" && !webhookSecret) {
+						webhookSecret = val;
+					}
+				}
+			}
+		}
+	} catch (e) {
+		console.warn("Could not read .env:", e);
+	}
+
+	return {
+		token: token.replace(/^Bearer\s+/i, "").trim(),
+		isTestMode: testMode !== undefined ? testMode !== "false" : true,
+		webhookSecret,
+	};
+}
+
+export async function handleZiinaStatus({ request }: LoaderFunctionArgs) {
+	const envConfig = getZiinaEnvConfig();
+	const hasToken = Boolean(envConfig.token);
+	let maskedToken = "";
+	if (hasToken) {
+		maskedToken =
+			envConfig.token.length > 8
+				? `${envConfig.token.substring(0, 4)}••••${envConfig.token.substring(envConfig.token.length - 4)}`
+				: "••••••••";
+	}
+
+	return Response.json({
+		success: true,
+		configured: hasToken,
+		envConfigured: hasToken,
+		maskedToken,
+		testMode: envConfig.isTestMode,
+		mode: envConfig.isTestMode ? "sandbox" : "production",
+		hasWebhookSecret: Boolean(envConfig.webhookSecret),
+		apiUrl: ZIINA_API_BASE,
+	});
+}
 
 export async function handleZiinaCreateIntent({ request, context }: ActionFunctionArgs) {
 	const d1 = (context as any)?.cloudflare?.env?.DB;
 
 	try {
 		const body = (await request.json()) as {
-			orderId: string;
+			intent?: string;
+			orderId?: string;
 			orderNumber?: string;
-			amount: number;
+			amount?: number;
 			currency?: string;
 			customerName?: string;
 			customerPhone?: string;
@@ -19,21 +87,6 @@ export async function handleZiinaCreateIntent({ request, context }: ActionFuncti
 			apiToken?: string;
 			testMode?: boolean;
 		};
-
-		const { orderId, orderNumber, amount } = body;
-		if (!orderId || !amount || amount <= 0) {
-			return Response.json(
-				{ success: false, error: "orderId and valid amount are required" },
-				{ status: 400 },
-			);
-		}
-
-		const currency = body.currency || "AED";
-		const amountInFils = Math.round(amount * 100);
-
-		const rawToken = (body.apiToken || process.env.ZIINA_API_TOKEN || "").trim();
-		const token = rawToken.replace(/^Bearer\s+/i, "").trim();
-		const isTestMode = body.testMode ?? (process.env.ZIINA_TEST_MODE !== "false");
 
 		function getPublicBaseUrl(req: Request): string {
 			const origin = req.headers.get("origin");
@@ -66,6 +119,113 @@ export async function handleZiinaCreateIntent({ request, context }: ActionFuncti
 		}
 
 		const publicBase = getPublicBaseUrl(request);
+		const envConfig = getZiinaEnvConfig();
+		const token = envConfig.token || (body.apiToken ? body.apiToken.replace(/^Bearer\s+/i, "").trim() : "");
+		const isTestMode = envConfig.isTestMode;
+
+		// 1. Connection Ping / Test Diagnostic Mode
+		if (body.intent === "ping") {
+			if (!token) {
+				return Response.json({
+					success: false,
+					configured: false,
+					isLiveGateway: false,
+					error: "لم يتم العثور على ZIINA_API_TOKEN في ملف .env",
+					message: "يرجى تعيين ZIINA_API_TOKEN في ملف .env بالخادم لتفعيل الاتصال المباشر بالبوابة.",
+				});
+			}
+
+			const t0 = Date.now();
+			const pingPayload: ZiinaCreateIntentPayload = {
+				amount: 500, // 5.00 AED test ping
+				currency_code: "AED",
+				message: `Teen Liwa Connection Diagnostic [${new Date().toLocaleTimeString("en-GB")}]`,
+				success_url: `${publicBase}/payment/callback?status=success&test_ping=true`,
+				cancel_url: `${publicBase}/payment/callback?status=cancelled&test_ping=true`,
+				failure_url: `${publicBase}/payment/callback?status=failed&test_ping=true`,
+				test: isTestMode,
+				allow_tips: false,
+			};
+
+			try {
+				let res = await fetch(`${ZIINA_API_BASE}/payment_intent`, {
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${token}`,
+						"Content-Type": "application/json",
+						Accept: "application/json",
+					},
+					body: JSON.stringify(pingPayload),
+				});
+
+				let latencyMs = Date.now() - t0;
+				let resText = await res.text();
+				let parsedData: any = null;
+				try { parsedData = JSON.parse(resText); } catch {}
+
+				// Retry with flipped test mode if test mode mismatch occurs
+				if (!res.ok && (res.status === 400 || res.status === 422 || resText.toLowerCase().includes("test"))) {
+					const retryPayload = { ...pingPayload, test: !pingPayload.test };
+					const retryRes = await fetch(`${ZIINA_API_BASE}/payment_intent`, {
+						method: "POST",
+						headers: {
+							Authorization: `Bearer ${token}`,
+							"Content-Type": "application/json",
+							Accept: "application/json",
+						},
+						body: JSON.stringify(retryPayload),
+					});
+					if (retryRes.ok) {
+						res = retryRes;
+						resText = await retryRes.text();
+						try { parsedData = JSON.parse(resText); } catch {}
+					}
+				}
+
+				if (res.ok && parsedData?.redirect_url) {
+					return Response.json({
+						success: true,
+						configured: true,
+						isLiveGateway: true,
+						latencyMs,
+						payment_intent_id: parsedData.id,
+						redirect_url: parsedData.redirect_url,
+						mode: isTestMode ? "sandbox" : "production",
+						message: `الاتصال ببوابة Ziina ناجح ومستقر (زمن الاستجابة: ${latencyMs}ms)`,
+						timestamp: new Date().toISOString(),
+					});
+				} else {
+					return Response.json({
+						success: false,
+						configured: true,
+						isLiveGateway: false,
+						latencyMs,
+						error: parsedData?.message || `خطأ استجابة من بوابة Ziina (رمز ${res.status})`,
+						detail: resText,
+						statusCode: res.status,
+					});
+				}
+			} catch (pingErr) {
+				return Response.json({
+					success: false,
+					configured: true,
+					error: `تعذر الوصول لخوادم Ziina: ${pingErr instanceof Error ? pingErr.message : "Network error"}`,
+				});
+			}
+		}
+
+		// 2. Standard Order Payment Intent Creation
+		const { orderId, orderNumber, amount } = body;
+		if (!orderId || !amount || amount <= 0) {
+			return Response.json(
+				{ success: false, error: "orderId and valid amount are required" },
+				{ status: 400 },
+			);
+		}
+
+		const currency = body.currency || "AED";
+		const amountInFils = Math.round(amount * 100);
+
 		const successUrl = `${publicBase}/payment/callback?status=success&orderId=${encodeURIComponent(orderId)}&payment_intent_id={PAYMENT_INTENT_ID}`;
 		const cancelUrl = `${publicBase}/payment/callback?status=cancelled&orderId=${encodeURIComponent(orderId)}&payment_intent_id={PAYMENT_INTENT_ID}`;
 		const failureUrl = `${publicBase}/payment/callback?status=failed&orderId=${encodeURIComponent(orderId)}&payment_intent_id={PAYMENT_INTENT_ID}`;
