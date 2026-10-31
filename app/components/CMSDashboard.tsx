@@ -35,6 +35,7 @@ import {
 	Image as ImageIcon,
 	Upload,
 	CreditCard,
+	Clock,
 } from "lucide-react";
 import { CmsRouteInstructionsBanner } from "./cms/CmsRouteInstructionsBanner";
 import { StoreAiCopilot } from "./cms/StoreAiCopilot";
@@ -104,8 +105,8 @@ export const CMSDashboard: React.FC = () => {
 	});
 	const [r2ConfigForm, setR2ConfigForm] = useState({
 		accountId: "0b7dc087410628baa1f652ea0fb8bd57",
-		accessKeyId: "edaa617e65bf06c1e92ae289e137d1c7",
-		secretAccessKey: "",
+		accessKeyId: "6661dcbf8d777bf587cd42d1bcb8b9ca",
+		secretAccessKey: "e6f736a24c5624c6e5227c8b6d3a17c86bc9f7578c8a9e7fea39c125aa85723e",
 		bucket: "bt-liwa",
 		publicUrl: "https://r2.teenliwa.com/products",
 		endpoint: "https://0b7dc087410628baa1f652ea0fb8bd57.r2.cloudflarestorage.com",
@@ -273,11 +274,13 @@ export const CMSDashboard: React.FC = () => {
 		e: React.ChangeEvent<HTMLInputElement>,
 		target: "new" | "edit"
 	) => {
-		const file = e.target.files?.[0];
+		const inputElem = e.target;
+		const file = inputElem.files?.[0];
 		if (!file) return;
 
 		if (!file.type.startsWith("image/")) {
 			showToast("ملف غير صالح", "يرجى اختيار ملف صورة صالح (JPG, PNG, WebP).", "warning");
+			inputElem.value = "";
 			return;
 		}
 
@@ -309,18 +312,20 @@ export const CMSDashboard: React.FC = () => {
 					const newEntry = { label: `R2 سحابية · ${file.name.slice(0, 15)}`, url: data.url };
 					setUploadedImages((prev) => [newEntry, ...prev]);
 
-					showToast("تم تخزين الصورة في R2", `تم حفظ وتخزين صورة "${file.name}" مباشرة في سحابة R2 بنجاح (بدون تخزين محلي).`);
+					showToast("تم تخزين الصورة في R2", `تم حفظ وتخزين صورة "${file.name}" مباشرة في سحابة R2 بنجاح.`);
 				} else {
-					// Fallback preview while alerting
+					// Fallback preview
 					if (target === "new") setNewProdImage(base64);
 					else if (editingProduct) setEditingProduct((prev) => (prev ? { ...prev, image: base64 } : null));
-					showToast("تنبيه سحابة R2", data.error || "تمت المعاينة، يرجى ضبط مفاتيح R2 لضمان التخزين السحابي الدائم.", "warning");
+					showToast("تم تطبيق الصورة", "تم اعتماد الصورة (ستُرفع إلى R2 عند حفظ المنتج).", "info");
 				}
 			} catch (err) {
 				if (target === "new") setNewProdImage(base64);
+				else if (editingProduct) setEditingProduct((prev) => (prev ? { ...prev, image: base64 } : null));
 				showToast("تم تطبيق الصورة", "تم تعيين الصورة للمحصول.", "info");
 			} finally {
 				setIsUploadingProductImage(false);
+				inputElem.value = "";
 			}
 		};
 
@@ -362,10 +367,10 @@ export const CMSDashboard: React.FC = () => {
 		setNewProdDescription("");
 	};
 
-	const handleSaveEditProduct = (e: React.FormEvent) => {
+	const handleSaveEditProduct = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!editingProduct) return;
-		updateProduct(editingProduct.id, editingProduct);
+		await updateProduct(editingProduct.id, editingProduct);
 		setEditingProduct(null);
 	};
 
@@ -2023,17 +2028,33 @@ export const CMSDashboard: React.FC = () => {
 						</div>
 
 						<form onSubmit={handleSaveEditProduct} className="space-y-3 text-xs">
-							<div>
-								<label className="block font-semibold mb-1">اسم المنتج *</label>
-								<input
-									type="text"
-									required
-									value={editingProduct.name}
-									onChange={(e) =>
-										setEditingProduct({ ...editingProduct, name: e.target.value })
-									}
-									className="w-full p-2 border border-stone-300 rounded-lg"
-								/>
+							{/* Product Names (Arabic & English) */}
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+								<div>
+									<label className="block font-semibold mb-1">اسم المنتج (بالعربية) *</label>
+									<input
+										type="text"
+										required
+										value={editingProduct.name}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, name: e.target.value })
+										}
+										className="w-full p-2 border border-stone-300 rounded-lg"
+									/>
+								</div>
+								<div>
+									<label className="block font-semibold mb-1">الاسم بالإنجليزية (Name in English)</label>
+									<input
+										type="text"
+										value={editingProduct.nameEn || ""}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, nameEn: e.target.value })
+										}
+										placeholder="e.g. Fresh Red Figs"
+										className="w-full p-2 border border-stone-300 rounded-lg text-left"
+										dir="ltr"
+									/>
+								</div>
 							</div>
 
 							{/* Immediate Availability Status Control */}
@@ -2132,13 +2153,13 @@ export const CMSDashboard: React.FC = () => {
 										onChange={(e) =>
 											setEditingProduct({ ...editingProduct, unit: e.target.value })
 										}
-										placeholder="مثال: كرتون، كيلو قطاف طازج"
+										placeholder="مثال: سحارة خشبية ٢ كجم"
 										className="w-full p-2 border border-stone-300 rounded-lg"
 									/>
 								</div>
 							</div>
 
-							<div className="grid grid-cols-2 gap-2">
+							<div className="grid grid-cols-3 gap-2">
 								<div>
 									<label className="block font-semibold mb-1">السعر (د.إ) *</label>
 									<input
@@ -2151,12 +2172,28 @@ export const CMSDashboard: React.FC = () => {
 												price: Number(e.target.value),
 											})
 										}
+										className="w-full p-2 border border-stone-300 rounded-lg font-bold text-[#8B5A2B]"
+									/>
+								</div>
+
+								<div>
+									<label className="block font-semibold mb-1">السعر الأصلي (اختياري)</label>
+									<input
+										type="number"
+										value={editingProduct.originalPrice ?? ""}
+										onChange={(e) =>
+											setEditingProduct({
+												...editingProduct,
+												originalPrice: e.target.value ? Number(e.target.value) : undefined,
+											})
+										}
+										placeholder="قبل الخصم"
 										className="w-full p-2 border border-stone-300 rounded-lg"
 									/>
 								</div>
 
 								<div>
-									<label className="block font-semibold mb-1">الكمية المتوفرة بالمخزون</label>
+									<label className="block font-semibold mb-1">الكمية بالمخزون</label>
 									<input
 										type="number"
 										value={editingProduct.stockQuantity ?? 25}
@@ -2169,21 +2206,37 @@ export const CMSDashboard: React.FC = () => {
 												disabled: val > 0 ? 0 : 1,
 											});
 										}}
-										className="w-full p-2 border border-stone-300 rounded-lg"
+										className="w-full p-2 border border-stone-300 rounded-lg font-bold"
 									/>
 								</div>
 							</div>
 
-							<div>
-								<label className="block font-semibold mb-1">المصدر / المزرعة</label>
-								<input
-									type="text"
-									value={editingProduct.origin || ""}
-									onChange={(e) =>
-										setEditingProduct({ ...editingProduct, origin: e.target.value })
-									}
-									className="w-full p-2 border border-stone-300 rounded-lg"
-								/>
+							<div className="grid grid-cols-2 gap-2">
+								<div>
+									<label className="block font-semibold mb-1">المصدر / المزرعة</label>
+									<input
+										type="text"
+										value={editingProduct.origin || ""}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, origin: e.target.value })
+										}
+										placeholder="مزارع ليوا - واحات الظفرة"
+										className="w-full p-2 border border-stone-300 rounded-lg"
+									/>
+								</div>
+
+								<div>
+									<label className="block font-semibold mb-1">شارة العرض (Badge)</label>
+									<input
+										type="text"
+										value={editingProduct.badge || ""}
+										onChange={(e) =>
+											setEditingProduct({ ...editingProduct, badge: e.target.value || undefined })
+										}
+										placeholder="مثال: الأكثر طلباً، قطاف جديد"
+										className="w-full p-2 border border-stone-300 rounded-lg"
+									/>
+								</div>
 							</div>
 
 							{/* Image selection & Direct File Upload */}

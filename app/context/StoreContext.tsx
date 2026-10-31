@@ -53,7 +53,7 @@ interface StoreContextType {
 	// Catalog
 	products: Product[];
 	addProduct: (product: Omit<Product, "id">) => void;
-	updateProduct: (id: string, updates: Partial<Product>) => void;
+	updateProduct: (id: string, updates: Partial<Product>) => Promise<void> | void;
 	deleteProduct: (id: string) => void;
 	toggleProductStock: (id: string) => void;
 
@@ -702,8 +702,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		}).catch((e) => console.warn("Backend create product sync error:", e));
 	};
 
-	const updateProduct = (id: string, updates: Partial<Product>) => {
+	const updateProduct = async (id: string, updates: Partial<Product>) => {
 		const normalizedUpdates: Partial<Product> = { ...updates };
+
+		// If updated image is base64, store permanently in Cloudflare R2
+		if (normalizedUpdates.image && normalizedUpdates.image.startsWith("data:image/")) {
+			try {
+				const uploadRes = await fetch("/api/r2", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						intent: "upload_base64",
+						imageBase64: normalizedUpdates.image,
+						imageName: normalizedUpdates.nameEn || normalizedUpdates.name || id,
+					}),
+				});
+				const uploadData = (await uploadRes.json()) as any;
+				if (uploadData.success && uploadData.url) {
+					normalizedUpdates.image = uploadData.url;
+				}
+			} catch (err) {
+				console.warn("Could not upload updated product image to R2:", err);
+			}
+		}
 
 		// Keep inStock, disabled, and disabledTxt in perfect sync
 		if (updates.inStock !== undefined && updates.disabled === undefined) {

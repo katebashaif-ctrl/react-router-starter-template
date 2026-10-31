@@ -87,8 +87,8 @@ const SCHEMA_STATEMENTS = [
 // R2 Credentials configuration for remote cloud storage backup
 const R2_CONFIG = {
   accountId: process.env.CLOUDFLARE_ACCOUNT_ID || "0b7dc087410628baa1f652ea0fb8bd57",
-  accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "edaa617e65bf06c1e92ae289e137d1c7",
-  secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "",
+  accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "6661dcbf8d777bf587cd42d1bcb8b9ca",
+  secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "e6f736a24c5624c6e5227c8b6d3a17c86bc9f7578c8a9e7fea39c125aa85723e",
   bucket: process.env.CLOUDFLARE_R2_BUCKET || "bt-liwa",
   endpoint:
     process.env.CLOUDFLARE_R2_ENDPOINT && process.env.CLOUDFLARE_R2_ENDPOINT.includes("r2.cloudflarestorage.com")
