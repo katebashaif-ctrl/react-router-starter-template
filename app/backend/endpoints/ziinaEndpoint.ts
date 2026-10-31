@@ -389,7 +389,7 @@ export async function handleZiinaVerify({ request, context }: LoaderFunctionArgs
 	const paymentIntentId = url.searchParams.get("id") || url.searchParams.get("payment_intent_id");
 	const orderId = url.searchParams.get("orderId");
 	const simulated = url.searchParams.get("simulated") === "true";
-	const apiToken = (url.searchParams.get("token") || process.env.ZIINA_API_TOKEN || "").trim();
+	const apiToken = (url.searchParams.get("token") || getZiinaEnvConfig().token || "").trim();
 
 	if (!paymentIntentId) {
 		return Response.json(
@@ -438,11 +438,12 @@ export async function handleZiinaVerify({ request, context }: LoaderFunctionArgs
 		}
 
 		const isPaid = intentData.status === "completed";
+		const targetOrderId = orderId || paymentIntentId;
 
-		if (orderId) {
+		if (targetOrderId) {
 			try {
 				await updateOrderPaymentInDb(
-					orderId,
+					targetOrderId,
 					isPaid ? "paid" : "failed",
 					{
 						ziinaPaymentIntentId: paymentIntentId,
@@ -486,13 +487,20 @@ export async function handleZiinaWebhook({ request, context }: ActionFunctionArg
 
 		if (intent && intent.id) {
 			const status = intent.status === "completed" ? "paid" : intent.status === "failed" ? "failed" : "pending";
-			const orderId = intent.metadata?.orderId || intent.message?.match(/#([a-zA-Z0-9_-]+)/)?.[1];
+			const orderId = intent.metadata?.orderId || intent.message?.match(/#([a-zA-Z0-9_-]+)/)?.[1] || intent.id;
 
 			if (orderId) {
-				await updateOrderPaymentInDb(orderId, {
-					paymentStatus: status,
-					paymentDetails: intent,
-				}, d1);
+				await updateOrderPaymentInDb(
+					orderId,
+					status,
+					{
+						ziinaPaymentIntentId: intent.id,
+						cardBrand: intent.card_details?.card_brand,
+						cardLastFour: intent.card_details?.card_last_four,
+						orderStatus: status === "paid" ? "processing" : "pending",
+					},
+					d1
+				);
 			}
 		}
 

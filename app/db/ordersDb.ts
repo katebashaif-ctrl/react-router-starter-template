@@ -41,6 +41,11 @@ const SCHEMA_STATEMENTS = [
     total REAL NOT NULL DEFAULT 0,
     payment_method TEXT NOT NULL DEFAULT 'cod',
     payment_status TEXT NOT NULL DEFAULT 'pending',
+    ziina_payment_intent_id TEXT,
+    ziina_redirect_url TEXT,
+    transaction_id TEXT,
+    card_brand TEXT,
+    card_last_four TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     notes TEXT,
     gift_note TEXT,
@@ -121,6 +126,21 @@ export async function initializeD1Schema(db: D1DatabaseLike, force = false): Pro
         }
       }
     }
+
+    // Auto-migrate missing columns for existing D1 database instances
+    const alterColumns = [
+      "ALTER TABLE orders ADD COLUMN ziina_payment_intent_id TEXT",
+      "ALTER TABLE orders ADD COLUMN ziina_redirect_url TEXT",
+      "ALTER TABLE orders ADD COLUMN transaction_id TEXT",
+      "ALTER TABLE orders ADD COLUMN card_brand TEXT",
+      "ALTER TABLE orders ADD COLUMN card_last_four TEXT",
+    ];
+    for (const alter of alterColumns) {
+      try {
+        await db.prepare(alter).run();
+      } catch {}
+    }
+
     isD1SchemaInitialized = true;
     return true;
   } catch (err) {
@@ -411,8 +431,8 @@ export async function createOrderInDb(
               id, tracking_number, order_number, customer_id, customer_name,
               phone, customer_phone, emirate, customer_emirate, address, customer_address,
               items, items_json, notes, gift_note, subtotal, delivery_fee, discount, total,
-              payment_method, payment_status, status, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              payment_method, payment_status, ziina_payment_intent_id, ziina_redirect_url, status, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .bind(
             newOrder.id,
@@ -435,7 +455,9 @@ export async function createOrderInDb(
             newOrder.discount,
             newOrder.total,
             newOrder.paymentMethod,
-            "pending",
+            newOrder.paymentStatus || "pending",
+            newOrder.ziinaPaymentIntentId || null,
+            newOrder.ziinaRedirectUrl || null,
             newOrder.status,
             "web_store",
             nowIso,
@@ -635,6 +657,7 @@ export async function updateOrderPaymentInDb(
   paymentStatus: "paid" | "failed" | "pending" | "cancelled",
   details?: {
     ziinaPaymentIntentId?: string;
+    ziinaRedirectUrl?: string;
     transactionId?: string;
     cardBrand?: string;
     cardLastFour?: string;
@@ -658,6 +681,9 @@ export async function updateOrderPaymentInDb(
     if (details?.ziinaPaymentIntentId) {
       memoryOrdersCache[idx].ziinaPaymentIntentId = details.ziinaPaymentIntentId;
     }
+    if (details?.ziinaRedirectUrl) {
+      memoryOrdersCache[idx].ziinaRedirectUrl = details.ziinaRedirectUrl;
+    }
     if (details?.transactionId) {
       memoryOrdersCache[idx].transactionId = details.transactionId;
     }
@@ -674,12 +700,51 @@ export async function updateOrderPaymentInDb(
       await initializeD1Schema(d1);
       const newStatus =
         details?.orderStatus || (paymentStatus === "paid" ? "processing" : "pending");
-      await d1
-        .prepare(
-          "UPDATE orders SET payment_status = ?, status = ?, updated_at = ? WHERE id = ? OR tracking_number = ? OR order_number = ?"
-        )
-        .bind(paymentStatus, newStatus, new Date().toISOString(), orderId, orderId, orderId)
-        .run();
+      
+      const cleanIntent = details?.ziinaPaymentIntentId?.trim() || null;
+      const cleanRedirect = details?.ziinaRedirectUrl?.trim() || null;
+      const cleanTx = details?.transactionId?.trim() || null;
+      const cleanBrand = details?.cardBrand?.trim() || null;
+      const cleanLastFour = details?.cardLastFour?.trim() || null;
+
+      try {
+        await d1
+          .prepare(
+            `UPDATE orders 
+             SET payment_status = ?, 
+                 status = ?, 
+                 ziina_payment_intent_id = COALESCE(?, ziina_payment_intent_id),
+                 ziina_redirect_url = COALESCE(?, ziina_redirect_url),
+                 transaction_id = COALESCE(?, transaction_id),
+                 card_brand = COALESCE(?, card_brand),
+                 card_last_four = COALESCE(?, card_last_four),
+                 updated_at = ? 
+             WHERE id = ? OR tracking_number = ? OR order_number = ? OR ziina_payment_intent_id = ?`
+          )
+          .bind(
+            paymentStatus,
+            newStatus,
+            cleanIntent,
+            cleanRedirect,
+            cleanTx,
+            cleanBrand,
+            cleanLastFour,
+            new Date().toISOString(),
+            orderId,
+            orderId,
+            orderId,
+            orderId
+          )
+          .run();
+      } catch (colErr) {
+        // Fallback update without extended columns if schema update failed
+        await d1
+          .prepare(
+            "UPDATE orders SET payment_status = ?, status = ?, updated_at = ? WHERE id = ? OR tracking_number = ? OR order_number = ?"
+          )
+          .bind(paymentStatus, newStatus, new Date().toISOString(), orderId, orderId, orderId)
+          .run();
+      }
     } catch (e: any) {
       console.warn("D1 update order payment status error:", e);
     }

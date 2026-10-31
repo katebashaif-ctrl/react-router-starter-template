@@ -30,6 +30,7 @@ export const CartDrawer: React.FC = () => {
 		setIsCartOpen,
 		settings,
 		addOrder,
+		updateOrderPaymentDetails,
 		setLastOrder,
 		showToast,
 	} = useStore();
@@ -166,6 +167,15 @@ export const CartDrawer: React.FC = () => {
 						} catch {
 							targetUrl = `/payment/callback?status=success&orderId=${encodeURIComponent(finalOrderId)}&simulated=true`;
 						}
+					}
+
+					// Persist payment intent ID and redirect URL to the order in state and database
+					if (ziinaData.payment_intent?.id) {
+						updateOrderPaymentDetails(finalOrderId, {
+							ziinaPaymentIntentId: ziinaData.payment_intent.id,
+							ziinaRedirectUrl: targetUrl,
+							paymentStatus: "pending",
+						});
 					}
 
 					// Clear cart now that payment intent is ready and verified

@@ -61,6 +61,7 @@ interface StoreContextType {
 	orders: Order[];
 	addOrder: (orderData: Omit<Order, "id" | "orderNumber" | "createdAt" | "status">) => Promise<Order>;
 	updateOrderStatus: (orderId: string, status: Order["status"]) => Promise<void>;
+	updateOrderPaymentDetails: (orderId: string, details: Partial<Order>) => void;
 	deleteOrder: (orderId: string) => Promise<void>;
 	fetchOrdersFromDatabase: () => Promise<boolean>;
 	isOrdersLoading: boolean;
@@ -208,8 +209,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 	const [toasts, setToasts] = useState<ToastNotification[]>([]);
 	const [isClient, setIsClient] = useState(false);
 
-	// Admin Auth state
-	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+	// Admin Auth state - synchronously checks localStorage and browser cookies to prevent session loss on refresh
+	const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			try {
+				const saved =
+					localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) ||
+					localStorage.getItem("teen_liwa_admin_auth");
+				if (saved === "true") return true;
+
+				const cookieStr = document.cookie || "";
+				if (
+					cookieStr.includes(`${ADMIN_COOKIE_NAME}=`) ||
+					cookieStr.includes("teen_liwa_admin_auth=true") ||
+					cookieStr.includes("admin_auth=true")
+				) {
+					return true;
+				}
+			} catch (e) {}
+		}
+		return false;
+	});
 	const [isAdminLoginModalOpen, setIsAdminLoginModalOpen] = useState(false);
 
 	// Cookie Consent & Legal Modals - synchronously checks localStorage & cookies
@@ -378,13 +398,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		return false;
 	};
 
-	// Helper to set cookie with iframe-compatible attributes
+	// Helper to set cookie with standard browser-compliant attributes
 	const writeAdminCookie = () => {
 		if (typeof document !== "undefined") {
 			try {
 				const isSecure = window.location.protocol === "https:";
-				const sameSite = isSecure ? "SameSite=None; Secure" : "SameSite=Lax";
-				document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=604800; ${sameSite}`;
+				const secureFlag = isSecure ? "; Secure" : "";
+				document.cookie = `${ADMIN_COOKIE_NAME}=${ADMIN_AUTH_TOKEN}; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
+				document.cookie = `teen_liwa_admin_auth=true; path=/; max-age=2592000; SameSite=Lax${secureFlag}`;
 			} catch (e) {}
 		}
 	};
@@ -565,11 +586,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		setIsAdminAuthenticated(false);
 		if (typeof document !== "undefined") {
 			try {
-				document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+				const isSecure = window.location.protocol === "https:";
+				const secureFlag = isSecure ? "; Secure" : "";
+				document.cookie = `${ADMIN_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
+				document.cookie = `teen_liwa_admin_auth=; path=/; max-age=0; SameSite=Lax${secureFlag}`;
 			} catch (e) {}
 		}
 		if (isClient) {
 			localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+			localStorage.removeItem("teen_liwa_admin_auth");
 		}
 		setCurrentView("store");
 		showToast(t("toasts.logout"), t("toasts.logoutMsg"), "info");
@@ -591,8 +616,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				localStorage.setItem(STORAGE_KEYS.COOKIE_CONSENT, val);
 				localStorage.setItem("teen_liwa_cookie_consent", val);
 				const isSecure = window.location.protocol === "https:";
-				const sameSite = isSecure ? "SameSite=None; Secure" : "SameSite=Lax";
-				document.cookie = `teen_liwa_cookie_consent=${val}; path=/; max-age=31536000; ${sameSite}`;
+				const secureFlag = isSecure ? "; Secure" : "";
+				document.cookie = `teen_liwa_cookie_consent=${val}; path=/; max-age=31536000; SameSite=Lax${secureFlag}`;
 			} catch (e) {}
 		}
 		if (val === "accepted") {
@@ -883,6 +908,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					intent: "create_order",
+					id: tempId,
+					orderNumber: orderNum,
 					...orderData,
 				}),
 			});
@@ -954,6 +981,50 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		} catch (err) {
 			console.warn("Failed to update order status on server:", err);
 		}
+	};
+
+	const updateOrderPaymentDetails = (
+		orderId: string,
+		details: Partial<Order>,
+	) => {
+		setOrders((prev) => {
+			const updated = prev.map((o) => {
+				if (
+					o.id === orderId ||
+					o.orderNumber === orderId ||
+					(o.ziinaPaymentIntentId && o.ziinaPaymentIntentId === orderId)
+				) {
+					return { ...o, ...details };
+				}
+				return o;
+			});
+			if (typeof window !== "undefined") {
+				try {
+					localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(updated));
+				} catch {}
+			}
+			return updated;
+		});
+
+		// Persist update to database
+		fetch("/api/orders", {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+				...getAdminRequestHeaders(),
+			},
+			body: JSON.stringify({
+				intent: "update_payment",
+				orderId,
+				paymentStatus: details.paymentStatus || "pending",
+				ziinaPaymentIntentId: details.ziinaPaymentIntentId,
+				ziinaRedirectUrl: details.ziinaRedirectUrl,
+				transactionId: details.transactionId,
+				cardBrand: details.cardBrand,
+				cardLastFour: details.cardLastFour,
+				orderStatus: details.status,
+			}),
+		}).catch((e) => console.warn("Failed to sync order payment details:", e));
 	};
 
 	const deleteOrder = async (orderId: string) => {
@@ -1118,6 +1189,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 				orders,
 				addOrder,
 				updateOrderStatus,
+				updateOrderPaymentDetails,
 				deleteOrder,
 				fetchOrdersFromDatabase,
 				isOrdersLoading,

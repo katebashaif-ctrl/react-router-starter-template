@@ -13,7 +13,15 @@ export const CMSView: React.FC = () => {
 		setCurrentView,
 	} = useStore();
 
-	if (!isAdminAuthenticated) {
+	const isAuthEffective =
+		isAdminAuthenticated ||
+		(typeof window !== "undefined" &&
+			(localStorage.getItem("teen_liwa_admin_auth_v2") === "true" ||
+				localStorage.getItem("teen_liwa_admin_auth") === "true" ||
+				document.cookie.includes("khayrat_admin_auth=") ||
+				document.cookie.includes("teen_liwa_admin_auth=true")));
+
+	if (!isAuthEffective) {
 		return (
 			<StoreLayout>
 				<div className="flex-1 flex items-center justify-center p-6 py-20 bg-[#FAF7F2]">

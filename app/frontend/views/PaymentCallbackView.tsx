@@ -35,7 +35,7 @@ interface VerificationResult {
 }
 
 export const PaymentCallbackView: React.FC = () => {
-	const { orders, clearCart } = useStore();
+	const { orders, clearCart, updateOrderPaymentDetails } = useStore();
 	const [searchParams] = useSearchParams();
 	const statusParam = searchParams.get("status") || "success";
 	const orderId = searchParams.get("orderId") || "";
@@ -68,22 +68,51 @@ export const PaymentCallbackView: React.FC = () => {
 					if (data.success) {
 						setResult(data);
 						if (data.isPaid) clearCart();
+						const targetId = orderId || paymentIntentId;
+						if (targetId) {
+							updateOrderPaymentDetails(targetId, {
+								paymentStatus: data.isPaid ? "paid" : "failed",
+								status: data.isPaid ? "processing" : "pending",
+								ziinaPaymentIntentId: paymentIntentId || data.intent?.id,
+								cardBrand: data.intent?.card_details?.card_brand,
+								cardLastFour: data.intent?.card_details?.card_last_four,
+							});
+						}
 					} else {
+						const isSuccessFallback = statusParam === "success";
 						setResult({
-							status: statusParam === "success" ? "completed" : "failed",
-							isPaid: statusParam === "success",
+							status: isSuccessFallback ? "completed" : "failed",
+							isPaid: isSuccessFallback,
 						});
-						if (statusParam === "success") clearCart();
+						if (isSuccessFallback) clearCart();
+						const targetId = orderId || paymentIntentId;
+						if (targetId) {
+							updateOrderPaymentDetails(targetId, {
+								paymentStatus: isSuccessFallback ? "paid" : "failed",
+								status: isSuccessFallback ? "processing" : "pending",
+								ziinaPaymentIntentId: paymentIntentId,
+							});
+						}
 					}
 					setIsLoading(false);
 				}
 			} catch (err) {
 				console.warn("Verification error:", err);
 				if (isMounted) {
+					const isSuccessFallback = statusParam === "success";
 					setResult({
-						status: statusParam === "success" ? "completed" : "failed",
-						isPaid: statusParam === "success",
+						status: isSuccessFallback ? "completed" : "failed",
+						isPaid: isSuccessFallback,
 					});
+					if (isSuccessFallback) clearCart();
+					const targetId = orderId || paymentIntentId;
+					if (targetId) {
+						updateOrderPaymentDetails(targetId, {
+							paymentStatus: isSuccessFallback ? "paid" : "failed",
+							status: isSuccessFallback ? "processing" : "pending",
+							ziinaPaymentIntentId: paymentIntentId,
+						});
+					}
 					setIsLoading(false);
 				}
 			}

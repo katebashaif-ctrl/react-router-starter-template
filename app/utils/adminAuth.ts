@@ -80,6 +80,7 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
     const cookies = parseCookies(cookieHeader);
     const sessionVal =
       cookies[ADMIN_COOKIE_NAME] ||
+      cookies["teen_liwa_admin_auth"] ||
       cookies["admin_auth"] ||
       cookies["admin_token"] ||
       cookies["admin_session"];

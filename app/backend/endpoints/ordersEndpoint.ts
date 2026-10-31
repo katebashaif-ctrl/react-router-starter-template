@@ -3,6 +3,7 @@ import {
   getOrdersFromDb,
   createOrderInDb,
   updateOrderStatusInDb,
+  updateOrderPaymentInDb,
   deleteOrderFromDb,
 } from "../../db/ordersDb";
 import { verifyAdminAuth } from "../../utils/adminAuth";
@@ -118,6 +119,43 @@ export async function handleOrdersAction({ request, context }: ActionFunctionArg
       { success: false, error: "Unauthorized. Admin credentials required.", code: "UNAUTHORIZED" },
       { status: 401 }
     );
+  }
+
+  if (intent === "update_payment") {
+    const { orderId, paymentStatus, ziinaPaymentIntentId, ziinaRedirectUrl, transactionId, cardBrand, cardLastFour, orderStatus } = body;
+    if (!orderId) {
+      return Response.json({ success: false, error: "orderId required" }, { status: 400 });
+    }
+
+    try {
+      await updateOrderPaymentInDb(
+        orderId,
+        paymentStatus || "pending",
+        {
+          ziinaPaymentIntentId,
+          ziinaRedirectUrl,
+          transactionId,
+          cardBrand,
+          cardLastFour,
+          orderStatus,
+        },
+        d1
+      );
+      return Response.json({
+        success: true,
+        message: "Order payment details updated successfully",
+        orderId,
+      });
+    } catch (err) {
+      return Response.json(
+        {
+          success: false,
+          error: "Failed to update order payment details",
+          detail: err instanceof Error ? err.message : "unknown",
+        },
+        { status: 500 }
+      );
+    }
   }
 
   if (intent === "update_status" || method === "PATCH") {
