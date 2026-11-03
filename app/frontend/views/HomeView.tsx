@@ -13,33 +13,40 @@ import type { Product } from "../../types/store";
 export const HomeView: React.FC = () => {
 	const {
 		currentView,
-		products,
 		activeCategory,
 		searchQuery,
 		selectedProduct,
 		setSelectedProduct,
 	} = useStore();
 	const [serverProducts, setServerProducts] = useState<Product[] | null>(null);
+	const [isCatalogLoading, setIsCatalogLoading] = useState(true);
 
 	useEffect(() => {
 		if (currentView !== "store") return;
 
 		let cancelled = false;
+		setIsCatalogLoading(true);
 		const loadCatalog = async () => {
 			try {
-				// The server catalog is authoritative. Avoid rendering an old browser/R2
-				// copy after an admin creates or edits products.
-				const response = await fetch("/api/products", { cache: "no-store" });
-				if (!response.ok) return;
+				// Always render the server catalog, never a possibly stale browser/R2 copy.
+				const response = await fetch(`/api/products?_=${Date.now()}`, {
+					cache: "no-store",
+					headers: { "Cache-Control": "no-cache" },
+				});
+				if (!response.ok) throw new Error(`Catalog request failed (${response.status})`);
 				const result = (await response.json()) as {
 					success?: boolean;
 					products?: Product[];
 				};
-				if (!cancelled && result.success && Array.isArray(result.products)) {
-					setServerProducts(result.products);
+				if (!result.success || !Array.isArray(result.products)) {
+					throw new Error("Server returned an invalid product catalog");
 				}
+				if (!cancelled) setServerProducts(result.products);
 			} catch (error) {
-				console.warn("Could not load the latest store catalog:", error);
+				console.warn("Could not load the canonical product catalog:", error);
+				if (!cancelled) setServerProducts([]);
+			} finally {
+				if (!cancelled) setIsCatalogLoading(false);
 			}
 		};
 
@@ -53,7 +60,7 @@ export const HomeView: React.FC = () => {
 		return <CMSView />;
 	}
 
-	const catalogProducts = serverProducts ?? products;
+	const catalogProducts = serverProducts ?? [];
 	const filteredProducts = catalogProducts.filter((p) => {
 		let matchesCategory = activeCategory === "all";
 		if (!matchesCategory) {
@@ -70,25 +77,22 @@ export const HomeView: React.FC = () => {
 					p.category === "truffle" ||
 					p.tag === "truffle";
 			} else if (activeCategory === "nuts") {
-				matchesCategory =
-					p.category === "nuts" ||
-					p.tag === "nuts";
+				matchesCategory = p.category === "nuts" || p.tag === "nuts";
 			} else if (activeCategory === "fruits") {
-				matchesCategory =
-					p.category === "fruits" ||
-					p.tag === "fruits";
+				matchesCategory = p.category === "fruits" || p.tag === "fruits";
 			} else {
 				matchesCategory = p.category === activeCategory;
 			}
 		}
 
+		const query = searchQuery.toLowerCase();
 		const matchesSearch =
-			!searchQuery ||
-			p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			(p.nameEn && p.nameEn.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(p.origin && p.origin.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(p.desc && p.desc.toLowerCase().includes(searchQuery.toLowerCase())) ||
-			(p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()));
+			!query ||
+			p.name.toLowerCase().includes(query) ||
+			(p.nameEn && p.nameEn.toLowerCase().includes(query)) ||
+			(p.origin && p.origin.toLowerCase().includes(query)) ||
+			(p.desc && p.desc.toLowerCase().includes(query)) ||
+			(p.description && p.description.toLowerCase().includes(query));
 
 		return matchesCategory && matchesSearch;
 	});
@@ -96,15 +100,16 @@ export const HomeView: React.FC = () => {
 	return (
 		<StoreLayout>
 			<Hero />
-
-			{/* Products Catalog Section */}
 			<section
 				id="catalog-section"
 				className="py-12 lg:py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
 			>
 				<CategoryFilter />
-
-				{filteredProducts.length === 0 ? (
+				{isCatalogLoading ? (
+					<div className="py-16 text-center text-stone-500" role="status" aria-live="polite">
+						جاري تحميل المنتجات…
+					</div>
+				) : filteredProducts.length === 0 ? (
 					<div className="py-16 text-center bg-white rounded-2xl border border-[#E8DCCB] p-8 space-y-3">
 						<p className="font-serif text-xl font-bold text-stone-800">
 							{t("products.emptySearchTitle")}
@@ -125,9 +130,7 @@ export const HomeView: React.FC = () => {
 					</div>
 				)}
 			</section>
-
 			<EmiratiHeritageSection />
-
 			<ProductDetailModal
 				product={selectedProduct}
 				onClose={() => setSelectedProduct(null)}
