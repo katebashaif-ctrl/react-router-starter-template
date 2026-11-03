@@ -294,6 +294,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		return false;
 	};
 
+	const refreshProductsFromServer = async (): Promise<boolean> => {
+		try {
+			const res = await fetch("/api/products", {
+				headers: getAdminRequestHeaders(),
+			});
+			if (!res.ok) return false;
+			const json = (await res.json()) as any;
+			if (json.success && Array.isArray(json.products)) {
+				const nextProducts = json.products as Product[];
+				setProducts(nextProducts);
+				if (isClient) {
+					try {
+						localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(nextProducts));
+					} catch (e) {}
+				}
+				return true;
+			}
+		} catch (err) {
+			console.warn("Could not refresh products from /api/products:", err);
+		}
+		return false;
+	};
+
 	const getClientR2SecretKey = (): string => {
 		try {
 			if (typeof window !== "undefined") {
@@ -469,7 +492,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			console.error("Error reading localStorage:", e);
 		}
 
-		// Sync live from Cloudflare R2 Bucket
+		// Prefer the server-backed product list over static R2 merge.
+		refreshProductsFromServer();
 		fetchCatalogFromR2();
 	}, []);
 
@@ -576,6 +600,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 			showToast(t("toasts.welcomeAdmin"), t("toasts.welcomeAdminMsg"));
 			setTimeout(() => {
 				fetchOrdersFromDatabase();
+				refreshProductsFromServer();
 			}, 100);
 			return true;
 		}
@@ -685,21 +710,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		}
 		showToast(t("toasts.productAdded"), t("toasts.productAddedMsg"));
 
-		// Sync directly to Cloudflare R2
+		// Sync directly to Cloudflare R2 (non-blocking)
 		syncCatalogToR2(updated);
 
-		// Synchronize to backend /api/products
-		fetch("/api/products", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				...getAdminRequestHeaders(),
-			},
-			body: JSON.stringify({
-				intent: "create_product",
-				product: newProduct,
-			}),
-		}).catch((e) => console.warn("Backend create product sync error:", e));
+		// Synchronize to backend /api/products and re-sync from server state
+		try {
+			const res = await fetch("/api/products", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
+				},
+				body: JSON.stringify({
+					intent: "create_product",
+					product: newProduct,
+				}),
+			});
+			const json = (await res.json()) as any;
+			if (json.success) {
+				await refreshProductsFromServer();
+			}
+		} catch (e) {
+			console.warn("Backend create product sync error:", e);
+		}
 	};
 
 	const updateProduct = async (id: string, updates: Partial<Product>) => {
@@ -753,22 +786,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		showToast(t("toasts.productUpdated"), t("toasts.productUpdatedMsg"));
 		syncCatalogToR2(updated);
 
-		// Synchronize to backend /api/products
-		fetch("/api/products", {
-			method: "PATCH",
-			headers: {
-				"Content-Type": "application/json",
-				...getAdminRequestHeaders(),
-			},
-			body: JSON.stringify({
-				intent: "update_product",
-				id,
-				updates: normalizedUpdates,
-			}),
-		}).catch((e) => console.warn("Backend update product sync error:", e));
+		// Synchronize to backend /api/products and refresh from persisted server state
+		try {
+			const res = await fetch("/api/products", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
+				},
+				body: JSON.stringify({
+					intent: "update_product",
+					id,
+					updates: normalizedUpdates,
+				}),
+			});
+			const json = (await res.json()) as any;
+			if (json.success) {
+				await refreshProductsFromServer();
+			}
+		} catch (e) {
+			console.warn("Backend update product sync error:", e);
+		}
 	};
 
-	const deleteProduct = (id: string) => {
+	const deleteProduct = async (id: string) => {
 		const updated = products.filter((p) => p.id !== id);
 		setProducts(updated);
 		if (isClient) {
@@ -779,20 +820,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		showToast(t("toasts.productDeleted"), t("toasts.productDeletedMsg"), "info");
 		syncCatalogToR2(updated);
 
-		fetch("/api/products", {
-			method: "DELETE",
-			headers: {
-				"Content-Type": "application/json",
-				...getAdminRequestHeaders(),
-			},
-			body: JSON.stringify({
-				intent: "delete_product",
-				id,
-			}),
-		}).catch((e) => console.warn("Backend delete product sync error:", e));
+		try {
+			const res = await fetch("/api/products", {
+				method: "DELETE",
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
+				},
+				body: JSON.stringify({
+					intent: "delete_product",
+					id,
+				}),
+			});
+			const json = (await res.json()) as any;
+			if (json.success) {
+				await refreshProductsFromServer();
+			}
+		} catch (e) {
+			console.warn("Backend delete product sync error:", e);
+		}
 	};
 
-	const toggleProductStock = (id: string) => {
+	const toggleProductStock = async (id: string) => {
 		const target = products.find((p) => p.id === id);
 		if (!target) return;
 
@@ -809,7 +858,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 						disabled: nextDisabled,
 						disabledTxt: nextDisabledTxt,
 						stockQuantity: nextStockQty,
-				  }
+					  }
 				: p
 		);
 
@@ -825,23 +874,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 		);
 		syncCatalogToR2(updated);
 
-		fetch("/api/products", {
-			method: "PATCH",
-			headers: {
-				"Content-Type": "application/json",
-				...getAdminRequestHeaders(),
-			},
-			body: JSON.stringify({
-				intent: "update_product",
-				id,
-				updates: {
-					inStock: nextInStock,
-					disabled: nextDisabled,
-					disabledTxt: nextDisabledTxt,
-					stockQuantity: nextStockQty,
+		try {
+			const res = await fetch("/api/products", {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					...getAdminRequestHeaders(),
 				},
-			}),
-		}).catch((e) => console.warn("Backend products toggle sync error:", e));
+				body: JSON.stringify({
+					intent: "update_product",
+					id,
+					updates: {
+						inStock: nextInStock,
+						disabled: nextDisabled,
+						disabledTxt: nextDisabledTxt,
+						stockQuantity: nextStockQty,
+					},
+				}),
+			});
+			const json = (await res.json()) as any;
+			if (json.success) {
+				await refreshProductsFromServer();
+			}
+		} catch (e) {
+			console.warn("Backend products toggle sync error:", e);
+		}
 	};
 
 	// Cart operations
