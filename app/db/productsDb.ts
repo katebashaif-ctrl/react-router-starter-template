@@ -15,9 +15,9 @@ export interface D1DatabaseLike {
   exec?: (query: string) => Promise<any>;
 }
 
-// In-memory products cache initialized with authentic Emirati catalog
+// D1 is authoritative when available; this cache is only a fallback for runtimes
+// without a database binding.
 let memoryProductsCache: Product[] = [...INITIAL_PRODUCTS];
-let isProductsLoaded = false;
 let isProductSchemaInitialized = false;
 
 function getR2Config() {
@@ -27,140 +27,101 @@ function getR2Config() {
     "/app/applet/app/data/r2-config.json",
     path.resolve(process.cwd(), "data/r2-config.json"),
   ];
-  for (const c of candidates) {
+  for (const candidate of candidates) {
     try {
-      if (fs.existsSync(c)) {
-        diskConfig = JSON.parse(fs.readFileSync(c, "utf-8"));
+      if (fs.existsSync(candidate)) {
+        diskConfig = JSON.parse(fs.readFileSync(candidate, "utf-8"));
         break;
       }
     } catch {}
   }
 
-  const accountId =
-    diskConfig.accountId ||
-    process.env.CLOUDFLARE_ACCOUNT_ID ||
-    "0b7dc087410628baa1f652ea0fb8bd57";
-  const accessKeyId =
-    diskConfig.accessKeyId ||
-    process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
-    "6661dcbf8d777bf587cd42d1bcb8b9ca";
-  const secretAccessKey =
-    diskConfig.secretAccessKey ||
-    process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY ||
-    "e6f736a24c5624c6e5227c8b6d3a17c86bc9f7578c8a9e7fea39c125aa85723e";
-  const bucket =
-    diskConfig.bucket || process.env.CLOUDFLARE_R2_BUCKET || "bt-liwa";
+  const accountId = diskConfig.accountId || process.env.CLOUDFLARE_ACCOUNT_ID || "";
+  const accessKeyId = diskConfig.accessKeyId || process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || "";
+  const secretAccessKey = diskConfig.secretAccessKey || process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY || "";
+  const bucket = diskConfig.bucket || process.env.CLOUDFLARE_R2_BUCKET || "";
   const endpoint =
     diskConfig.endpoint ||
     process.env.CLOUDFLARE_R2_ENDPOINT ||
-    `https://${accountId}.r2.cloudflarestorage.com`;
-
-  return { accountId, accessKeyId, secretAccessKey, bucket, endpoint };
+    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : "");
+  return { accessKeyId, secretAccessKey, bucket, endpoint };
 }
 
-function getR2Client(): AwsClient | null {
-  const cfg = getR2Config();
-  if (!cfg.accessKeyId || !cfg.secretAccessKey) return null;
-  return new AwsClient({
-    accessKeyId: cfg.accessKeyId,
-    secretAccessKey: cfg.secretAccessKey,
-    service: "s3",
-    region: "auto",
-  });
+function getR2Client(): { client: AwsClient; bucket: string; endpoint: string } | null {
+  const config = getR2Config();
+  if (!config.accessKeyId || !config.secretAccessKey || !config.bucket || !config.endpoint) return null;
+  return {
+    client: new AwsClient({
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      service: "s3",
+      region: "auto",
+    }),
+    bucket: config.bucket,
+    endpoint: config.endpoint.replace(/\/+$/, ""),
+  };
 }
 
-/**
- * Ensure D1 products schema exists
- */
 export async function initializeProductsSchema(db: D1DatabaseLike, force = false): Promise<boolean> {
   if (isProductSchemaInitialized && !force) return true;
-
+  const ddl = `
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL NOT NULL,
+      image_url TEXT,
+      seed_key TEXT,
+      available INTEGER DEFAULT 1,
+      category_id TEXT,
+      sort_order INTEGER DEFAULT 1,
+      minimum_order_quantity INTEGER DEFAULT 1,
+      maximum_order_quantity INTEGER,
+      data_json TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
   try {
-    const ddl = `
-      CREATE TABLE IF NOT EXISTS products (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        price REAL NOT NULL,
-        image_url TEXT,
-        seed_key TEXT,
-        available INTEGER DEFAULT 1,
-        category_id TEXT,
-        sort_order INTEGER DEFAULT 1,
-        minimum_order_quantity INTEGER DEFAULT 1,
-        maximum_order_quantity INTEGER,
-        data_json TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
     await db.prepare(ddl).run();
     isProductSchemaInitialized = true;
     return true;
-  } catch (err: any) {
+  } catch (error) {
     if (typeof db.exec === "function") {
       try {
-        await db.exec(`
-          CREATE TABLE IF NOT EXISTS products (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            price REAL NOT NULL,
-            image_url TEXT,
-            seed_key TEXT,
-            available INTEGER DEFAULT 1,
-            category_id TEXT,
-            sort_order INTEGER DEFAULT 1,
-            minimum_order_quantity INTEGER DEFAULT 1,
-            maximum_order_quantity INTEGER,
-            data_json TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+        await db.exec(ddl);
         isProductSchemaInitialized = true;
         return true;
-      } catch (e) {
-        console.warn("Product schema creation warning:", e);
+      } catch (execError) {
+        console.warn("Product schema creation warning:", execError);
       }
     }
+    console.warn("Product schema creation warning:", error);
     return false;
   }
 }
 
-/**
- * Map D1 SQL row to application Product type
- */
 export function mapD1RowToProduct(row: any): Product {
   let extraData: Partial<Product> = {};
-  if (row.data_json) {
-    try {
+  try {
+    if (row.data_json) {
       extraData = typeof row.data_json === "string" ? JSON.parse(row.data_json) : row.data_json;
-    } catch {}
-  }
+    }
+  } catch {}
 
   const categoryMap: Record<string, Product["category"]> = {
-    "cat-1": "rutab",
-    "cat-2": "figs",
-    "cat-3": "dates",
-    "cat-4": "truffles",
-    "cat-5": "heritage_boxes",
-    "cat-6": "preserves",
-    "rutab": "rutab",
-    "figs": "figs",
-    "dates": "dates",
-    "truffles": "truffles",
-    "heritage_boxes": "heritage_boxes",
-    "preserves": "preserves",
+    "cat-1": "rutab", "cat-2": "figs", "cat-3": "dates", "cat-4": "truffles",
+    "cat-5": "heritage_boxes", "cat-6": "preserves", rutab: "rutab", figs: "figs",
+    dates: "dates", truffles: "truffles", heritage_boxes: "heritage_boxes", preserves: "preserves",
   };
-
-  const cat = extraData.category || categoryMap[row.category_id] || "rutab";
+  const available = row.available == null ? extraData.inStock !== false : Number(row.available) === 1;
 
   return {
+    ...extraData,
     id: row.id,
     name: row.name,
     nameEn: extraData.nameEn || row.name,
-    category: cat,
+    category: extraData.category || categoryMap[row.category_id] || "rutab",
     price: Number(row.price) || 0,
-    originalPrice: extraData.originalPrice || undefined,
     unit: extraData.unit || "box",
     origin: extraData.origin || "Liwa & Al Ain Farms",
     harvestDate: extraData.harvestDate || "Fresh Harvest",
@@ -169,296 +130,201 @@ export function mapD1RowToProduct(row: any): Product {
     description: row.description || extraData.description || "",
     tastingNotes: extraData.tastingNotes || [],
     storageInstructions: extraData.storageInstructions || "Keep refrigerated",
-    inStock: row.available === 1 || extraData.inStock !== false,
+    inStock: available,
     stockQuantity: extraData.stockQuantity ?? 50,
-    badge: extraData.badge || undefined,
     featured: extraData.featured ?? false,
-  };
+  } as Product;
 }
 
-/**
- * Sync entire products catalog to Cloudflare R2 (data/store.json)
- */
 export async function syncProductsToR2(products: Product[]): Promise<boolean> {
   const r2 = getR2Client();
   if (!r2) return false;
-  const cfg = getR2Config();
-
   try {
-    const storeUrl = `${cfg.endpoint}/${cfg.bucket}/data/store.json`;
-    await r2.fetch(storeUrl, {
+    const response = await r2.client.fetch(`${r2.endpoint}/${r2.bucket}/data/store.json`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
-      body: JSON.stringify(
-        {
-          lastUpdated: new Date().toISOString(),
-          products,
-        },
-        null,
-        2
-      ),
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-cache, no-store, must-revalidate" },
+      body: JSON.stringify({ lastUpdated: new Date().toISOString(), products }, null, 2),
     });
-    return true;
-  } catch (err) {
-    console.warn("Could not sync products to R2:", err);
+    return response.ok;
+  } catch (error) {
+    console.warn("Could not sync products to R2:", error);
     return false;
   }
 }
 
-/**
- * Fetch products from Cloudflare R2
- */
 async function fetchProductsFromR2(): Promise<Product[] | null> {
   const r2 = getR2Client();
   if (!r2) return null;
-  const cfg = getR2Config();
-
   try {
-    const storeUrl = `${cfg.endpoint}/${cfg.bucket}/data/store.json`;
-    const res = await r2.fetch(storeUrl);
-    if (res.ok) {
-      const data = (await res.json()) as any;
-      if (data && Array.isArray(data.products)) {
-        return data.products;
-      }
-    }
-  } catch (err) {
-    console.warn("Could not fetch products from R2:", err);
-  }
-  return null;
-}
-
-/**
- * Seed initial sample products into D1 if database table is completely empty
- */
-async function seedInitialProductsToD1(d1: D1DatabaseLike): Promise<void> {
-  try {
-    for (const product of INITIAL_PRODUCTS) {
-      const jsonStr = JSON.stringify(product);
-      await d1
-        .prepare(
-          `INSERT OR IGNORE INTO products (
-            id, name, description, price, image_url, available, category_id,
-            sort_order, minimum_order_quantity, maximum_order_quantity, data_json, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)`
-        )
-        .bind(
-          product.id,
-          product.name,
-          product.description || "",
-          product.price,
-          product.image || "",
-          product.inStock ? 1 : 0,
-          product.category,
-          jsonStr,
-          new Date().toISOString()
-        )
-        .run();
-    }
-  } catch (seedErr) {
-    console.warn("Could not seed initial products to D1:", seedErr);
+    const response = await r2.client.fetch(`${r2.endpoint}/${r2.bucket}/data/store.json`, {
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { products?: Product[] };
+    return Array.isArray(data.products) ? data.products : null;
+  } catch (error) {
+    console.warn("Could not fetch products from R2:", error);
+    return null;
   }
 }
 
-/**
- * Get all products from persistent database (Cloudflare D1 SQL)
- */
+async function readProductsFromD1(db: D1DatabaseLike): Promise<Product[]> {
+  await initializeProductsSchema(db);
+  const { results } = await db
+    .prepare("SELECT * FROM products ORDER BY sort_order ASC, created_at DESC")
+    .bind()
+    .all<any>();
+  return Array.isArray(results) ? results.map(mapD1RowToProduct) : [];
+}
+
 export async function getProductsFromDb(d1?: D1DatabaseLike): Promise<{
   products: Product[];
   storageType: "d1_database" | "r2_database" | "memory_cache";
 }> {
   if (d1) {
     try {
-      await initializeProductsSchema(d1);
-      const stmt = d1.prepare("SELECT * FROM products ORDER BY sort_order ASC, created_at DESC");
-      let { results } = await stmt.bind().all<any>();
-
-      if (Array.isArray(results)) {
-        if (results.length === 0 && INITIAL_PRODUCTS.length > 0) {
-          await seedInitialProductsToD1(d1);
-          const afterSeed = await d1.prepare("SELECT * FROM products ORDER BY sort_order ASC, created_at DESC").bind().all<any>();
-          results = afterSeed?.results || [];
-        }
-
-        const d1Products = results.map(mapD1RowToProduct);
-        memoryProductsCache = d1Products.length > 0 ? d1Products : [...INITIAL_PRODUCTS];
-        isProductsLoaded = true;
-        return { products: memoryProductsCache, storageType: "d1_database" };
-      }
-    } catch (e: any) {
-      console.warn("D1 products query error:", e);
+      // An empty D1 catalog is intentional (for example after clearing products).
+      // Never reseed or merge sample products into an existing database.
+      const products = await readProductsFromD1(d1);
+      memoryProductsCache = products;
+      return { products, storageType: "d1_database" };
+    } catch (error) {
+      console.warn("D1 products query error:", error);
     }
   }
 
-  // Fallback to R2
   const r2Products = await fetchProductsFromR2();
-  if (r2Products && r2Products.length > 0) {
+  if (r2Products !== null) {
     memoryProductsCache = r2Products;
-    isProductsLoaded = true;
     return { products: r2Products, storageType: "r2_database" };
   }
-
-  if (memoryProductsCache.length === 0) {
-    memoryProductsCache = [...INITIAL_PRODUCTS];
-  }
-
-  return {
-    products: memoryProductsCache,
-    storageType: "memory_cache",
-  };
+  return { products: memoryProductsCache, storageType: "memory_cache" };
 }
 
-/**
- * Save new product into Cloudflare D1 SQL database
- */
+async function getCanonicalProducts(d1?: D1DatabaseLike): Promise<Product[]> {
+  if (d1) {
+    try {
+      memoryProductsCache = await readProductsFromD1(d1);
+    } catch (error) {
+      console.warn("Could not reload canonical D1 products:", error);
+    }
+  }
+  return memoryProductsCache;
+}
+
 export async function createProductInDb(product: Product, d1?: D1DatabaseLike): Promise<{
   product: Product;
   dbSaved: boolean;
   r2Synced: boolean;
 }> {
-  memoryProductsCache = [product, ...memoryProductsCache.filter((p) => p.id !== product.id)];
   let dbSaved = false;
-
   if (d1) {
     try {
       await initializeProductsSchema(d1);
-      const jsonStr = JSON.stringify(product);
-      await d1
-        .prepare(
-          `INSERT INTO products (
-            id, name, description, price, image_url, available, category_id,
-            sort_order, minimum_order_quantity, maximum_order_quantity, data_json, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)`
-        )
-        .bind(
-          product.id,
-          product.name,
-          product.description || "",
-          product.price,
-          product.image || "",
-          product.inStock ? 1 : 0,
-          product.category,
-          jsonStr,
-          new Date().toISOString()
-        )
+      await d1.prepare(`INSERT OR REPLACE INTO products (
+        id, name, description, price, image_url, available, category_id,
+        sort_order, minimum_order_quantity, maximum_order_quantity, data_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 0, ?, ?)`)
+        .bind(product.id, product.name, product.description || "", product.price, product.image || "",
+          product.inStock ? 1 : 0, product.category, JSON.stringify(product), new Date().toISOString())
         .run();
       dbSaved = true;
-    } catch (err: any) {
-      console.error("D1 product insert error:", err);
+    } catch (error) {
+      console.error("D1 product insert error:", error);
     }
   }
-
-  const r2Synced = await syncProductsToR2(memoryProductsCache);
+  if (!d1 || dbSaved) {
+    memoryProductsCache = d1
+      ? await getCanonicalProducts(d1)
+      : [product, ...memoryProductsCache.filter((item) => item.id !== product.id)];
+  }
+  const r2Synced = !d1 || dbSaved ? await syncProductsToR2(memoryProductsCache) : false;
   return { product, dbSaved, r2Synced };
 }
 
-/**
- * Update existing product in Cloudflare D1 SQL database
- */
 export async function updateProductInDb(
   id: string,
   updates: Partial<Product>,
-  d1?: D1DatabaseLike
+  d1?: D1DatabaseLike,
 ): Promise<{ product: Product | null; dbSaved: boolean; r2Synced: boolean }> {
-  let idx = memoryProductsCache.findIndex((p) => p.id === id);
-  if (idx === -1) {
-    const initialMatch = INITIAL_PRODUCTS.find((p) => p.id === id);
-    if (initialMatch) {
-      memoryProductsCache.push({ ...initialMatch });
-      idx = memoryProductsCache.length - 1;
-    } else {
-      return { product: null, dbSaved: false, r2Synced: false };
-    }
-  }
-
-  const updated: Product = { ...memoryProductsCache[idx], ...updates };
-  memoryProductsCache[idx] = updated;
-
-  let dbSaved = false;
+  let existing: Product | undefined;
   if (d1) {
     try {
       await initializeProductsSchema(d1);
-      const jsonStr = JSON.stringify(updated);
-      await d1
-        .prepare(
-          `UPDATE products SET
-            name = ?,
-            description = ?,
-            price = ?,
-            image_url = ?,
-            available = ?,
-            category_id = ?,
-            data_json = ?
-           WHERE id = ?`
-        )
-        .bind(
-          updated.name,
-          updated.description || "",
-          updated.price,
-          updated.image || "",
-          updated.inStock ? 1 : 0,
-          updated.category,
-          jsonStr,
-          id
-        )
+      const row = await d1.prepare("SELECT * FROM products WHERE id = ?").bind(id).first<any>();
+      if (row) existing = mapD1RowToProduct(row);
+    } catch (error) {
+      console.warn("Could not read product from D1 before update:", error);
+    }
+  } else {
+    existing = memoryProductsCache.find((item) => item.id === id);
+  }
+  if (!existing) return { product: null, dbSaved: false, r2Synced: false };
+
+  const updated: Product = { ...existing, ...updates, id };
+  let dbSaved = false;
+  if (d1) {
+    try {
+      await d1.prepare(`UPDATE products SET
+        name = ?, description = ?, price = ?, image_url = ?, available = ?,
+        category_id = ?, data_json = ? WHERE id = ?`)
+        .bind(updated.name, updated.description || "", updated.price, updated.image || "",
+          updated.inStock ? 1 : 0, updated.category, JSON.stringify(updated), id)
         .run();
       dbSaved = true;
-    } catch (err) {
-      console.error("D1 product update error:", err);
+    } catch (error) {
+      console.error("D1 product update error:", error);
     }
   }
-
-  const r2Synced = await syncProductsToR2(memoryProductsCache);
+  if (!d1 || dbSaved) {
+    memoryProductsCache = d1
+      ? await getCanonicalProducts(d1)
+      : memoryProductsCache.map((item) => item.id === id ? updated : item);
+  }
+  const r2Synced = !d1 || dbSaved ? await syncProductsToR2(memoryProductsCache) : false;
   return { product: updated, dbSaved, r2Synced };
 }
 
-/**
- * Delete product from Cloudflare D1 SQL database
- */
 export async function deleteProductFromDb(id: string, d1?: D1DatabaseLike): Promise<{
   deleted: boolean;
   dbSaved: boolean;
   r2Synced: boolean;
 }> {
-  memoryProductsCache = memoryProductsCache.filter((p) => p.id !== id);
   let dbSaved = false;
-
   if (d1) {
     try {
       await initializeProductsSchema(d1);
       await d1.prepare("DELETE FROM products WHERE id = ?").bind(id).run();
       dbSaved = true;
-    } catch (err) {
-      console.error("D1 product delete error:", err);
+    } catch (error) {
+      console.error("D1 product delete error:", error);
     }
   }
-
-  const r2Synced = await syncProductsToR2(memoryProductsCache);
+  if (!d1 || dbSaved) {
+    memoryProductsCache = d1
+      ? await getCanonicalProducts(d1)
+      : memoryProductsCache.filter((item) => item.id !== id);
+  }
+  const r2Synced = !d1 || dbSaved ? await syncProductsToR2(memoryProductsCache) : false;
   return { deleted: true, dbSaved, r2Synced };
 }
 
-/**
- * Delete all products from database (Clean slate for CMS)
- */
 export async function clearAllProductsInDb(d1?: D1DatabaseLike): Promise<{
   cleared: boolean;
   dbSaved: boolean;
   r2Synced: boolean;
 }> {
-  memoryProductsCache = [];
-  isProductsLoaded = true;
   let dbSaved = false;
-
   if (d1) {
     try {
       await initializeProductsSchema(d1);
-      await d1.prepare("DELETE FROM products").run();
+      await d1.prepare("DELETE FROM products").bind().run();
       dbSaved = true;
-    } catch (err) {
-      console.error("D1 products clear error:", err);
+    } catch (error) {
+      console.error("D1 products clear error:", error);
     }
   }
-
-  const r2Synced = await syncProductsToR2([]);
+  memoryProductsCache = d1 && !dbSaved ? memoryProductsCache : [];
+  const r2Synced = !d1 || dbSaved ? await syncProductsToR2(memoryProductsCache) : false;
   return { cleared: true, dbSaved, r2Synced };
 }
