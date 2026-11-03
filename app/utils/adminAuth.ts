@@ -25,11 +25,11 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
   const configuredSecret = env.ADMIN_SECRET || env.ADMIN_TOKEN || ADMIN_AUTH_TOKEN;
   const configuredPassword = env.ADMIN_PASSWORD || "admin";
 
-  const validTokens = new Set([
-    configuredSecret,
-    ADMIN_AUTH_TOKEN,
-    ADMIN_PASSWORD,
-  ].filter(Boolean));
+  const validTokens = new Set(
+    [configuredSecret, ADMIN_AUTH_TOKEN, configuredPassword].filter(
+      (value): value is string => typeof value === "string" && value.trim().length > 0,
+    ),
+  );
 
   // 1. Check Authorization header
   const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
@@ -52,7 +52,7 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
         const [user, pass] = decoded.split(":");
         if (
           user?.trim() === "admin" &&
-          (pass?.trim() === configuredPassword || validTokens.has(pass?.trim()))
+          (pass?.trim() === configuredPassword || validTokens.has(pass?.trim() ?? ""))
         ) {
           return { authorized: true };
         }
@@ -70,7 +70,10 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
     request.headers.get("X-Admin-Token") ||
     request.headers.get("X-Admin-Key");
 
-  if (customToken && (validTokens.has(customToken.trim()) || customToken.trim() === "true" || customToken.trim() === "1")) {
+  if (
+    customToken &&
+    (validTokens.has(customToken.trim()) || customToken.trim() === "true" || customToken.trim() === "1")
+  ) {
     return { authorized: true };
   }
 
@@ -85,12 +88,7 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
       cookies["admin_token"] ||
       cookies["admin_session"];
 
-    if (
-      sessionVal &&
-      (validTokens.has(sessionVal) ||
-        sessionVal === "1" ||
-        sessionVal === "true")
-    ) {
+    if (sessionVal && (validTokens.has(sessionVal) || sessionVal === "1" || sessionVal === "true")) {
       return { authorized: true };
     }
   }
@@ -116,12 +114,17 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
 }
 
 /**
- * Generates headers for client-side authenticated requests to admin endpoints
+ * Generates headers for client-side authenticated requests to admin endpoints.
  */
 export function getAdminRequestHeaders(): Record<string, string> {
+  const runtimeSecret =
+    typeof process !== "undefined" && process.env
+      ? process.env.ADMIN_SECRET || process.env.ADMIN_TOKEN || ADMIN_AUTH_TOKEN
+      : ADMIN_AUTH_TOKEN;
+
   return {
-    Authorization: `Bearer ${ADMIN_AUTH_TOKEN}`,
-    "x-admin-token": ADMIN_AUTH_TOKEN,
+    Authorization: `Bearer ${runtimeSecret}`,
+    "x-admin-token": runtimeSecret,
   };
 }
 
