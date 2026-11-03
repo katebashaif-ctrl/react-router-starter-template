@@ -28,7 +28,7 @@ export function verifyAdminAuth(request: Request, context?: any): AdminAuthResul
   const validTokens = new Set([
     configuredSecret,
     ADMIN_AUTH_TOKEN,
-    "admin",
+    ADMIN_PASSWORD,
   ].filter(Boolean));
 
   // 1. Check Authorization header
