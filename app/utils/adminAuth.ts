@@ -3,8 +3,8 @@
  * Protects administrative routes like /api/orders from unauthorized access.
  */
 
-export const ADMIN_AUTH_TOKEN = "khayrat-admin-secret-2025";
-export const ADMIN_COOKIE_NAME = "khayrat_admin_auth";
+export const ADMIN_AUTH_TOKEN = "teenliwa-admin-secret";
+export const ADMIN_COOKIE_NAME = "teenliwa_admin_auth";
 
 interface AdminAuthResult {
   authorized: boolean;
