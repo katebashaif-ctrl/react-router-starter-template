@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useStore } from "../../context/StoreContext";
 import { StoreLayout } from "../layout/StoreLayout";
 import { Hero } from "../../components/Hero";
@@ -8,6 +8,7 @@ import { EmiratiHeritageSection } from "../../components/EmiratiHeritageSection"
 import { ProductDetailModal } from "../../components/ProductDetailModal";
 import { CMSView } from "./CMSView";
 import { t } from "../locales/i18n";
+import type { Product } from "../../types/store";
 
 export const HomeView: React.FC = () => {
 	const {
@@ -18,12 +19,42 @@ export const HomeView: React.FC = () => {
 		selectedProduct,
 		setSelectedProduct,
 	} = useStore();
+	const [serverProducts, setServerProducts] = useState<Product[] | null>(null);
+
+	useEffect(() => {
+		if (currentView !== "store") return;
+
+		let cancelled = false;
+		const loadCatalog = async () => {
+			try {
+				// The server catalog is authoritative. Avoid rendering an old browser/R2
+				// copy after an admin creates or edits products.
+				const response = await fetch("/api/products", { cache: "no-store" });
+				if (!response.ok) return;
+				const result = (await response.json()) as {
+					success?: boolean;
+					products?: Product[];
+				};
+				if (!cancelled && result.success && Array.isArray(result.products)) {
+					setServerProducts(result.products);
+				}
+			} catch (error) {
+				console.warn("Could not load the latest store catalog:", error);
+			}
+		};
+
+		void loadCatalog();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentView]);
 
 	if (currentView === "cms") {
 		return <CMSView />;
 	}
 
-	const filteredProducts = products.filter((p) => {
+	const catalogProducts = serverProducts ?? products;
+	const filteredProducts = catalogProducts.filter((p) => {
 		let matchesCategory = activeCategory === "all";
 		if (!matchesCategory) {
 			if (activeCategory === "fig") {
