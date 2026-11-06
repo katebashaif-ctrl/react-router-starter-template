@@ -1,143 +1,81 @@
-/**
- * Admin Authentication utility for API routes and CMS
- * Protects administrative routes like /api/orders from unauthorized access.
- */
+export const ADMIN_COOKIE_NAME = "teenliwa_admin_session";
+const SESSION_TTL_SECONDS = 60 * 60 * 12;
 
-export const ADMIN_AUTH_TOKEN = "teenliwa-admin-secret";
-export const ADMIN_COOKIE_NAME = "teenliwa_admin_auth";
-
-interface AdminAuthResult {
-  authorized: boolean;
-  reason?: string;
+function getEnv(context?: unknown): Record<string, string | undefined> {
+  const workerEnv = (context as { cloudflare?: { env?: Record<string, string | undefined> } } | undefined)?.cloudflare?.env;
+  if (workerEnv) return workerEnv;
+  return typeof process !== "undefined" ? process.env : {};
 }
 
-/**
- * Validates whether the incoming Request has valid Admin credentials.
- * Supports:
- *  1. Header: Authorization: Bearer <token>
- *  2. Header: Authorization: Basic <base64(user:pass)>
- *  3. Header: x-admin-token, x-admin-key, x-admin-auth
- *  4. Cookie: khayrat_admin_auth=<token|1|true>
- *  5. Query param: ?admin_token=<token> or ?admin_key=<token>
- */
-export function verifyAdminAuth(request: Request, context?: any): AdminAuthResult {
-  const env = (context as any)?.cloudflare?.env || process.env || {};
-  const configuredSecret = env.ADMIN_SECRET || env.ADMIN_TOKEN || ADMIN_AUTH_TOKEN;
-  const configuredPassword = env.ADMIN_PASSWORD || "admin";
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
-  const validTokens = new Set(
-    [configuredSecret, ADMIN_AUTH_TOKEN, configuredPassword].filter(
-      (value): value is string => typeof value === "string" && value.trim().length > 0,
-    ),
+function base64UrlDecode(value: string): Uint8Array {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function signature(payload: string, secret: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
   );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
+}
 
-  // 1. Check Authorization header
-  const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
-  if (authHeader) {
-    const trimmed = authHeader.trim();
+export async function createAdminSession(context?: unknown): Promise<string | null> {
+  const secret = getEnv(context).ADMIN_SESSION_SECRET;
+  if (!secret) return null;
+  const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const payload = String(expiresAt);
+  return `${payload}.${base64UrlEncode(await signature(payload, secret))}`;
+}
 
-    // Bearer token
-    if (trimmed.toLowerCase().startsWith("bearer ")) {
-      const token = trimmed.slice(7).trim();
-      if (validTokens.has(token)) {
-        return { authorized: true };
-      }
-    }
+export async function verifyAdminAuth(request: Request, context?: unknown): Promise<{ authorized: boolean; reason?: string }> {
+  const secret = getEnv(context).ADMIN_SESSION_SECRET;
+  if (!secret) return { authorized: false, reason: "Admin session is not configured on the server." };
 
-    // Basic Auth (e.g. admin:admin)
-    if (trimmed.toLowerCase().startsWith("basic ")) {
-      try {
-        const base64 = trimmed.slice(6).trim();
-        const decoded = typeof atob === "function" ? atob(base64) : Buffer.from(base64, "base64").toString("utf-8");
-        const [user, pass] = decoded.split(":");
-        if (
-          user?.trim() === "admin" &&
-          (pass?.trim() === configuredPassword || validTokens.has(pass?.trim() ?? ""))
-        ) {
-          return { authorized: true };
-        }
-      } catch {
-        // invalid base64, continue to other checks
-      }
-    }
+  const cookieHeader = request.headers.get("cookie") || "";
+  const cookie = cookieHeader.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${ADMIN_COOKIE_NAME}=`));
+  const value = cookie?.slice(ADMIN_COOKIE_NAME.length + 1);
+  if (!value) return { authorized: false, reason: "Admin session required." };
+
+  const [expiresAt, encodedSignature, ...extra] = value.split(".");
+  if (!expiresAt || !encodedSignature || extra.length || !/^\d+$/.test(expiresAt)) {
+    return { authorized: false, reason: "Invalid admin session." };
+  }
+  if (Number(expiresAt) <= Math.floor(Date.now() / 1000)) {
+    return { authorized: false, reason: "Admin session expired." };
   }
 
-  // 2. Check Custom Admin Headers
-  const customToken =
-    request.headers.get("x-admin-token") ||
-    request.headers.get("x-admin-key") ||
-    request.headers.get("x-admin-auth") ||
-    request.headers.get("X-Admin-Token") ||
-    request.headers.get("X-Admin-Key");
-
-  if (
-    customToken &&
-    (validTokens.has(customToken.trim()) || customToken.trim() === "true" || customToken.trim() === "1")
-  ) {
-    return { authorized: true };
-  }
-
-  // 3. Check Cookies (for admin sessions in browser)
-  const cookieHeader = request.headers.get("cookie") || request.headers.get("Cookie");
-  if (cookieHeader) {
-    const cookies = parseCookies(cookieHeader);
-    const sessionVal =
-      cookies[ADMIN_COOKIE_NAME] ||
-      cookies["teen_liwa_admin_auth"] ||
-      cookies["admin_auth"] ||
-      cookies["admin_token"] ||
-      cookies["admin_session"];
-
-    if (sessionVal && (validTokens.has(sessionVal) || sessionVal === "1" || sessionVal === "true")) {
-      return { authorized: true };
-    }
-  }
-
-  // 4. Check query params (e.g. /api/orders?admin_token=...)
   try {
-    const url = new URL(request.url);
-    const queryToken =
-      url.searchParams.get("admin_token") ||
-      url.searchParams.get("admin_key") ||
-      url.searchParams.get("key");
-    if (queryToken && validTokens.has(queryToken.trim())) {
-      return { authorized: true };
-    }
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const valid = await crypto.subtle.verify("HMAC", key, base64UrlDecode(encodedSignature), new TextEncoder().encode(expiresAt));
+    return valid ? { authorized: true } : { authorized: false, reason: "Invalid admin session." };
   } catch {
-    // ignore URL parse errors
+    return { authorized: false, reason: "Invalid admin session." };
   }
-
-  return {
-    authorized: false,
-    reason: "Unauthorized. Admin Authorization Required",
-  };
 }
 
-/**
- * Generates headers for client-side authenticated requests to admin endpoints.
- */
-export function getAdminRequestHeaders(): Record<string, string> {
-  const runtimeSecret =
-    typeof process !== "undefined" && process.env
-      ? process.env.ADMIN_SECRET || process.env.ADMIN_TOKEN || ADMIN_AUTH_TOKEN
-      : ADMIN_AUTH_TOKEN;
-
-  return {
-    Authorization: `Bearer ${runtimeSecret}`,
-    "x-admin-token": runtimeSecret,
-  };
+export function adminSessionCookie(request: Request, value: string, maxAge = SESSION_TTL_SECONDS): string {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return `${ADMIN_COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
 }
 
-/**
- * Helper to parse cookies from Cookie header
- */
-function parseCookies(cookieStr: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  cookieStr.split(";").forEach((pair) => {
-    const [key, val] = pair.split("=");
-    if (key) {
-      result[key.trim()] = val ? decodeURIComponent(val.trim()) : "";
-    }
-  });
-  return result;
+export function isValidAdminPassword(username: unknown, password: unknown, context?: unknown): boolean {
+  const env = getEnv(context);
+  return Boolean(env.ADMIN_PASSWORD && typeof username === "string" && typeof password === "string" && username === (env.ADMIN_USERNAME || "admin") && password === env.ADMIN_PASSWORD);
 }
